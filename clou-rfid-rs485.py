@@ -14,6 +14,8 @@ from json import load, loads, dumps, dump
 import os
 import serial
 
+# Changed !!
+
 # Fill running ID parameter from system env = in docker this would be an outer port number
 #try:
 #    app_running_ID = int(os.environ["RFIDRUNID"])
