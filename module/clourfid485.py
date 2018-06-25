@@ -783,15 +783,15 @@ def post_log_tag_data(tag_data_object):
     del jj, ss_tmp
 
 # Connect method
-def reader_conn_open(port, baudrate=9600, bytesize=EIGHTBITS, parity=PARITY_NONE, stopbits=STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None):
-    if type(port) != str:
+def reader_conn_open(port_name, baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None):
+    if type(port_name) != str:
         post_log_message("reader_conn_open: port name is not str() type")
         return -1
-    if len(port) == 0:
+    if len(port_name) == 0:
         post_log_message("reader_conn_open: port name is empty")
         return -1
     try:
-        global_device_fd = serial.Serial(port, baudrate, bytesize, parity, stopbits, timeout, xonxoff, rtscts, write_timeout, dsrdtr, inter_byte_timeout)
+        global_device_fd = serial.Serial(port_name, baudrate, bytesize, parity, stopbits, timeout, xonxoff, rtscts, write_timeout, dsrdtr, inter_byte_timeout)
     except Exception as reader_conn_open_exception:
         post_log_message("reader_conn_open: error")
         print(reader_conn_open_exception)
