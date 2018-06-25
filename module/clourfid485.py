@@ -4,35 +4,15 @@ Python 2.7.12 (default, Dec  4 2017, 14:50:18)
 """
 
 from crcmod import mkCrcFun
-from socket import socket, AF_INET, SOCK_STREAM, SOCK_DGRAM, timeout
 from time import strftime, gmtime, sleep, clock, time
-from copy import deepcopy
-from sys import argv
-from collections import deque
-from threading import RLock, Thread
 from json import load, loads, dumps, dump
-import os
 import serial
 
-# Fill running ID parameter from system env = in docker this would be an outer port number
-#try:
-#    app_running_ID = int(os.environ["RFIDRUNID"])
-#except Exception:
-#    print("Wrong or not present variable RFIDRUNID in system env variables, exiting...")
-#    exit()
-
-app_running_ID = 10
-
-if os.name == "posix":
-    this_app_filename = "/home/dev/ws/py-dev/clou-rfid-rs485.py"
-    this_app_config = "/home/dev/ws/py-dev/clou-rfid-rs485-" + str(app_running_ID) + ".conf"
-    this_app_logpath = "/home/dev/ws/py-dev/"
-    this_app_ssid = "/home/dev/ws/py-dev/" + str(app_running_ID) + ":"
-elif os.name == "nt":
-    this_app_filename = "C:\\Workspace\\py-dev\\clou-rfid-rs485.py"
-    this_app_config = "C:\\Workspace\\py-dev\\clou-rfid-rs485-" + str(app_running_ID) + ".conf"
-    this_app_logpath = "C:\\Workspace\\py-dev\\"
-    this_app_ssid = "C:\\Workspace\\py-dev\\" + str(app_running_ID) + ":"
+this_app_logpath = str()
+global_log_list = list()
+global_device_fd = serial.Serial()
+errornum = 0
+errorstr = str()
 
 """
 --- Frame ---
@@ -515,36 +495,14 @@ DECODE_READ_EPC_TAG = {
     6: 'Other parameter error'
     }
 
-class ReaderSettings:
-    def __init__(self):
-        self.freq_auto_setting = 1  # default = 1 means autoselect frequency point, 0 = manual ! ALWAYS SET 1
-        self.freq_channels_list = list()    # does matter only if manual channel settings applied freq_auto_setting = 0
-
 FREQ_AUTO_SETTING = {
     0: 'MANUAL',
     1: 'AUTO'
     }
 
-# Locks for multithreading
-post_log_message_RLock = RLock()
-
-# Loading config
-try:
-    app_config_json_file = open(this_app_config, "r")
-except Exception:
-    print("Error loading " + this_app_config + ", exiting...")
-    exit()
-
-try:
-    app_config_json = load(app_config_json_file)
-except Exception:
-    print("Error decoding " + this_app_config + ", possibly wrong JSON format, exiting...")
-    exit()
-
-app_config_json_file.close()
+app_config_json = dict()
 
 def post_log_message(message_text, rfid_frame_object = 0, result_resp = 0, put_timestamp = True):
-    log_text_out = list()
     s_tmp = str()
     if put_timestamp:
         tmp_time_stamp = time()
@@ -567,17 +525,8 @@ def post_log_message(message_text, rfid_frame_object = 0, result_resp = 0, put_t
         for j in range(len(rfid_frame_object.data_bytes)):
             s_tmp = s_tmp + "{0:02X}".format(rfid_frame_object.data_bytes[j]) + " "
         s_tmp = s_tmp + "]"
-    log_text_out.append(s_tmp)
+    global_log_list.append(s_tmp)
     del s_tmp
-    j = 0
-    post_log_message_RLock.acquire()                       
-    log_file = open(this_app_logpath + "clou-rfid-rs485-" + str(app_running_ID) + strftime("-%Y-%m-%d-%H.log", gmtime()), "a")
-    for j in range(len(log_text_out)):
-        if log_to_stdout: print(log_text_out[j])  # Here change the way of logging !
-        log_file.write(log_text_out[j].replace("\r", str()) + "\n")
-    log_file.close()
-    post_log_message_RLock.release()                       
-    del(j, log_text_out)
 
 # to transform bytearray() to string for logging
 def byte_to_str(in_bytes):
@@ -809,144 +758,55 @@ def decode_tag_data_frame(response_frame_data): # decoding tag data frame
 def post_log_tag_data(tag_data_object):
     if type(tag_data_object) != type(TagData()):
         post_log_message('Error: tag_data_object in post_log_tag_data(tag_data_object) is not TagData()')
-    log_text_out = list()
     ss_tmp =                    "Tag EPC code       = "
     jj = 0
     for jj in range(len(tag_data_object.EPC_code)):
         ss_tmp = ss_tmp + "{0:02X}".format(tag_data_object.EPC_code[jj])
-    log_text_out.append(ss_tmp)
-    log_text_out.append(        "Tag EPC len        = " + str(tag_data_object.EPC_len * 16) + " bits")
-    log_text_out.append(        "Tag UMI            = " + str(tag_data_object.UMI))
-    log_text_out.append(        "Tag XPC indicator  = " + str(tag_data_object.XPC_indicator))
-    log_text_out.append(        "Tag num system id  = " + str(tag_data_object.num_sys_id_toggle))
-    log_text_out.append(        "Tag RFU            = 0x" + "{0:02X}".format(tag_data_object.RFU))
-    log_text_out.append(        "Antenna ID         = " + str(tag_data_object.ant_id))
+    global_log_list.append(ss_tmp)
+    global_log_list.append(        "Tag EPC len        = " + str(tag_data_object.EPC_len * 16) + " bits")
+    global_log_list.append(        "Tag UMI            = " + str(tag_data_object.UMI))
+    global_log_list.append(        "Tag XPC indicator  = " + str(tag_data_object.XPC_indicator))
+    global_log_list.append(        "Tag num system id  = " + str(tag_data_object.num_sys_id_toggle))
+    global_log_list.append(        "Tag RFU            = 0x" + "{0:02X}".format(tag_data_object.RFU))
+    global_log_list.append(        "Antenna ID         = " + str(tag_data_object.ant_id))
     for op_keys in tag_data_object.params.keys():
         if op_keys == TAG_DATA['RSSI']:
-            log_text_out.append("RSSI value         = " + str(tag_data_object.params[op_keys]))
+            global_log_list.append("RSSI value         = " + str(tag_data_object.params[op_keys]))
         elif op_keys == TAG_DATA['TIME']:
-            log_text_out.append("Tag read clock     = " + strftime("%d.%m.%Y %H:%M:%S",  gmtime(tag_data_object.params[op_keys])))
+            global_log_list.append("Tag read clock     = " + strftime("%d.%m.%Y %H:%M:%S",  gmtime(tag_data_object.params[op_keys])))
         elif op_keys == TAG_DATA['SERIES_NUM']:
             ss_tmp =            "Frame serial num   ="
             jj = 0
             for jj in range(len(tag_data_object.params[0x08])):
                 ss_tmp = ss_tmp + " " + "{0:02X}".format(tag_data_object.params[0x08][jj])
-            log_text_out.append(ss_tmp)    
-    jj = 0
-    post_log_message_RLock.acquire()                       
-    log_file = open(this_app_logpath + "clou-rfid-connector-" + str(app_running_ID)+strftime("-%Y-%m-%d-%H.log", gmtime()), "a")
-    for jj in range(len(log_text_out)):
-        if log_to_stdout: print(log_text_out[jj])  # Here change the way of logging !
-        log_file.write(log_text_out[jj] + "\n")
-    log_file.close()
-    post_log_message_RLock.release()                       
-    del(jj, ss_tmp, op_keys, log_text_out)
+            global_log_list.append(ss_tmp)    
+    del jj, ss_tmp
 
-# Flag to log to stdout with print()
-if app_config_json["stdout-logging"] == "yes":
-    log_to_stdout = True
-else:
-    log_to_stdout = False
+# Connect method
+def reader_conn_open(port, baudrate=9600, bytesize=EIGHTBITS, parity=PARITY_NONE, stopbits=STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None):
+    if type(port) != str:
+        post_log_message("reader_conn_open: port name is not str() type")
+        return -1
+    if len(port) == 0:
+        post_log_message("reader_conn_open: port name is empty")
+        return -1
+    try:
+        global_device_fd = serial.Serial(port, baudrate, bytesize, parity, stopbits, timeout, xonxoff, rtscts, write_timeout, dsrdtr, inter_byte_timeout)
+    except Exception as reader_conn_open_exception:
+        post_log_message("reader_conn_open: error")
+        print(reader_conn_open_exception)
+        return -1
+    return 0
 
-
-
-
-
-
-# ====================================================================
-# Here starting main code
-# ====================================================================
-
-post_log_message("Starting...")
-
-# Open serial port
-try:
-    fd_rs485 = serial.Serial(app_config_json["device-name"], 115200, timeout = 5)  # open serial port
-except Exception as fd_rs485_open_exception:
-    post_log_message("Error opening " + app_config_json["device-name"] + ": {0} ({1})".format(fd_rs485_open_exception.errno, fd_rs485_open_exception.strerror))
-post_log_message("Opened " + app_config_json["device-name"]) # put to log
-
-# Send OP_STOP command
-request_frame = ClouRFIDFrame('OP_STOP', TYPE_CONF_OPERATE, INIT_BY_USER, RS485_USED, 42, send_OP_STOP())
-request_frame.encodeFrame()
-
-fd_rs485_sent = 0
-try:
-    fd_rs485_sent = fd_rs485.write(request_frame.frame_raw_line)
-except Exception as fd_rs485_exception:
-    post_log_message("Error sending frame: {0} ({1})".format(fd_rs485_exception.errno, fd_rs485_exception.strerror), request_frame, 0)
-if  fd_rs485_sent != len(request_frame.frame_raw_line):
-    post_log_message('Error sending frame', request_frame, 0)
-else:
-    post_log_message('Sent to reader', request_frame, 0)
-del request_frame, fd_rs485_sent
-
-# Listen for answer
-fd_rs485_read_raw_data = bytearray()
-try:
-    fd_rs485_read_raw_data = fd_rs485.read(2**12)
-except Exception as fd_rs485_exception:
-    post_log_message("Error receiving from bus: {0} ({1})".format(fd_rs485_exception.errno, fd_rs485_exception.strerror))
-
-#post_log_message("Received from bus: [ " + byte_to_str(fd_rs485_read_raw_data) + " ]")
-
-# Decode answer
-response_frame = ClouRFIDFrame()
-j = 0
-for j in range(len(fd_rs485_read_raw_data)):
-    response_frame.frame_raw_line.append(ord(fd_rs485_read_raw_data[j]))
-del j
-res_decode = response_frame.decodeFrame()
-post_log_message("Decoded: ", response_frame, res_decode)
-del response_frame, fd_rs485_read_raw_data
-
-
-# Send OP_READ_EPC_TAG command
-reader_ant_to_use_tmp = list()
-reader_ant_to_use_tmp.append(1) # - first set which antennas to use
-
-request_frame = ClouRFIDFrame('OP_READ_EPC_TAG', TYPE_CONF_OPERATE, INIT_BY_USER, RS485_USED, 42, send_OP_READ_EPC_TAG(reader_ant_to_use_tmp, True))
-request_frame.encodeFrame()
-
-fd_rs485_sent = 0
-try:
-    fd_rs485_sent = fd_rs485.write(request_frame.frame_raw_line)
-except Exception as fd_rs485_exception:
-    post_log_message("Error sending frame: {0} ({1})".format(fd_rs485_exception.errno, fd_rs485_exception.strerror), request_frame, 0)
-if  fd_rs485_sent != len(request_frame.frame_raw_line):
-    post_log_message('Error sending frame', request_frame, 0)
-else:
-    post_log_message('Sent to reader', request_frame, 0)
-del fd_rs485_sent
-
-# Listen for answer
-fd_rs485_read_raw_data = bytearray()
-try:
-    fd_rs485_read_raw_data = fd_rs485.read(2**12)
-except Exception as fd_rs485_exception:
-    post_log_message("Error receiving from bus: {0} ({1})".format(fd_rs485_exception.errno, fd_rs485_exception.strerror))
-
-#post_log_message("Received from bus -->> [ " + byte_to_str(fd_rs485_read_raw_data) + " ]")
-
-# Decode answer
-response_frame = ClouRFIDFrame()
-j = 0
-for j in range(len(fd_rs485_read_raw_data)):
-    response_frame.frame_raw_line.append(ord(fd_rs485_read_raw_data[j]))
-del j
-res_decode = response_frame.decodeFrame()
-post_log_message("Decoded: ", response_frame, res_decode)
-del response_frame, fd_rs485_read_raw_data
+# Close method
+def reader_conn_close():
+    try:
+        global_device_fd.close()
+    except Exception as reader_conn_close_exception:
+        post_log_message("reader_conn_close: error")
+        return -1
+    return 0
 
 
 
 
-
-
-
-
-
-
-
-fd_rs485.close()
-post_log_message("Complete!")
