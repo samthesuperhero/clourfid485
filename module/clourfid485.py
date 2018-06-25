@@ -787,9 +787,11 @@ def send_general_MID(command_rs485_id, command_MID, command_message_type, comman
     request_frame.encodeFrame()
     command_data_bytes_sent = 0
     try:
-        command_data_bytes_sent = global_device_fd.write(request_frame.frame_raw_line)        
+        command_data_bytes_sent = global_device_fd.write(request_frame.frame_raw_line)
+        print(command_data_bytes_sent)        
     except Exception as send_general_MID_exception:
         post_log_message("send: " + str(send_general_MID_exception))
+        print("except")
         return -1
     if  command_data_bytes_sent != len(request_frame.frame_raw_line):
         post_log_message('send: error, sent ' + str(command_data_bytes_sent) + ' bytes, requested ' + str(len(request_frame.frame_raw_line)) + ' bytes: ', request_frame, 0)
