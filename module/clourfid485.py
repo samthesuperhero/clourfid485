@@ -794,8 +794,8 @@ def reader_conn_open(port_name, baudrate=9600, bytesize=serial.EIGHTBITS, parity
         global_device_fd = serial.Serial(port_name, baudrate, bytesize, parity, stopbits, timeout, xonxoff, rtscts, write_timeout, dsrdtr, inter_byte_timeout)
     except Exception as reader_conn_open_exception:
         post_log_message("reader_conn_open: error")
-        print(reader_conn_open_exception)
-        print(type(reader_conn_open_exception))
+        #print(reader_conn_open_exception)
+        #print(type(reader_conn_open_exception))
         return -1
     return 0
 
