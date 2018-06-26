@@ -6,6 +6,7 @@ Python 2.7.12 (default, Dec  4 2017, 14:50:18)
 from crcmod import mkCrcFun
 from time import strftime, gmtime, sleep, clock, time
 from json import load, loads, dumps, dump
+from collections import deque
 import serial
 
 global_logging = False
@@ -444,7 +445,7 @@ class ClouRFIDFrame:        # Clou RFID reader frame description
         del(init_by_reader_tmp, rs485_mark_tmp, rs485_added_1)
         return 0
 
-class ReaderParameters:
+class ReaderParameters:     # Parameters of reader
     def __init__(self):
         self.processor = str()
         self.name = str()
@@ -463,6 +464,12 @@ class ReaderParameters:
         self.antenna_qty = 0
         self.freq_band_list = list()
         self.rfid_protocol_list = list()
+
+class SerialConnectionContext:
+    def __init__(self, single_read_buffer_set = 2**14):
+        self.device_fd = serial.Serial()
+        self.raw_data_received = deque()
+        self.single_read_buffer = single_read_buffer_set
 
 FREQ_BANDS = {
     0: '920~925MHz',
@@ -783,23 +790,38 @@ def post_log_tag_data(tag_data_object):
         del jj, ss_tmp
 
 # General send method
-def send_general_MID(command_rs485_id, command_MID, command_message_type, command_start_data_with_len, command_data_bytes):
-    global global_device_fd
+def send_general_MID(connection_context, command_rs485_id, command_MID, command_message_type, command_start_data_with_len, command_data_bytes):
+    if type(connection_context) != type(SerialConnectionContext()):
+        return -1003
     request_frame = ClouRFIDFrame(command_MID, command_message_type, INIT_BY_USER, RS485_USED, command_rs485_id, command_data_bytes)
     request_frame.start_data_with_len = command_start_data_with_len
     request_frame.encodeFrame()
     command_data_bytes_sent = 0
     try:
-        command_data_bytes_sent = global_device_fd.write(request_frame.frame_raw_line)
+        command_data_bytes_sent = connection_context.device_fd.write(request_frame.frame_raw_line)
     except Exception as send_general_MID_exception:
         post_log_message("send: " + str(send_general_MID_exception))
-        return -1
+        return -1001
     if  command_data_bytes_sent != len(request_frame.frame_raw_line):
         post_log_message('send: error, sent ' + str(command_data_bytes_sent) + ' bytes, requested ' + str(len(request_frame.frame_raw_line)) + ' bytes: ', request_frame, 0)
-        return -1
+        return -1002
     else:
         post_log_message('Sent successfully: ', request_frame, 0)
     del request_frame, command_data_bytes_sent
+    return 0
+
+# General read method
+def read_general(connection_context):
+    if type(connection_context) != type(SerialConnectionContext()):
+        return -2001
+    raw_response_line = bytearray()
+    try:
+        raw_response_line = connection_context.device_fd.read(connection_context.single_read_buffer)           
+    except Exception as read_general_exception:
+        post_log_message("read_general: " + str(read_general_exception))
+        return -2002                    
+    connection_context.raw_data_received.append(raw_response_line)
+    del raw_response_line
     return 0
 
 # Return logs to the user
@@ -822,39 +844,47 @@ def log_disable():
     global_logging = False
 
 # Connect method
-def conn_open(port_name, baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None):
-    global global_device_fd
+def conn_open(connection_context, port_name, baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None):
+    if type(connection_context) != type(SerialConnectionContext()):
+        return -14
     if type(port_name) != str:
-        post_log_message("conn_open: port name is not str() type")
-        return -1
+        return -11
     if len(port_name) == 0:
-        post_log_message("conn_open: port name is empty")
-        return -1
+        return -12    
     try:
-        global_device_fd = serial.Serial(port_name, baudrate, bytesize, parity, stopbits, timeout, xonxoff, rtscts, write_timeout, dsrdtr, inter_byte_timeout)
+        connection_context.device_fd = serial.Serial(port_name, baudrate, bytesize, parity, stopbits, timeout, xonxoff, rtscts, write_timeout, dsrdtr, inter_byte_timeout)
     except Exception as conn_open_exception:
         post_log_message("conn_open: " + str(conn_open_exception))
-        return -1
+        return -13
     return 0
 
 # Close method
-def conn_close():
-    global global_device_fd
+def conn_close(connection_context):
+    if type(connection_context) != type(SerialConnectionContext()):
+        return -21
     try:
-        global_device_fd.close()
+        connection_context.device_fd.close()
     except Exception as conn_close_exception:
         post_log_message("conn_close: " + str(conn_close_exception))
-        return -1
+        return -24
     return 0
 
 # Send OP_STOP, wait for answer, decode, and return result
-def send_stop(command_rs485_id, timeout_to_wait):
-    global global_device_fd
-    if global_device_fd == serial.Serial():
-        post_log_message("send_stop: serial port descriptor empty")
-        return -1
-    if send_general_MID(command_rs485_id, 'OP_STOP', TYPE_CONF_OPERATE, True, send_OP_STOP()) == 0:
-        pass
+def send_stop(connection_context, command_rs485_id):
+    if type(connection_context) != type(SerialConnectionContext()):
+        return -31
+    if (type(timeout_to_wait) != int) and (type(timeout_to_wait) != float):
+        return -35
+    if connection_context.device_fd == serial.Serial():
+        return -36
+    send_general_MID_res = send_general_MID(connection_context, command_rs485_id, 'OP_STOP', TYPE_CONF_OPERATE, True, send_OP_STOP())
+    if send_general_MID_res == 0:
+        read_general_res = read_general(connection_context)
+        if read_general_res == 0:
+            post_log_message("send_stop: received [ " + str(byte_to_str(connection_context.raw_data_received)) + " ]")
+        else:
+            return read_general_res
     else:
-        return -1
+        return send_general_MID_res
+    del send_general_MID_res
     return 0
