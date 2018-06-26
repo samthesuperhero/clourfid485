@@ -873,8 +873,6 @@ def conn_close(connection_context):
 def send_stop(connection_context, command_rs485_id):
     if type(connection_context) != type(SerialConnectionContext()):
         return -31
-    if (type(timeout_to_wait) != int) and (type(timeout_to_wait) != float):
-        return -35
     if connection_context.device_fd == serial.Serial():
         return -36
     send_general_MID_res = send_general_MID(connection_context, command_rs485_id, 'OP_STOP', TYPE_CONF_OPERATE, True, send_OP_STOP())

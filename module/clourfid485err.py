@@ -11,6 +11,5 @@ ERRNAME = {
     -21: "conn_close: connection_context is not SerialConnectionContext() object",
     -24: "conn_close: serial.close exception",
     -31: "send_stop: connection_context is not SerialConnectionContext() object",
-    -35: "send_stop: timeout = int or float",
     -36: "send_stop: serial port descriptor connection_context.device_fd empty"
     }
