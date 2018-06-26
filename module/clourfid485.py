@@ -468,7 +468,7 @@ class ReaderParameters:     # Parameters of reader
 class SerialConnectionContext:
     def __init__(self, single_read_buffer_set = 2**14):
         self.device_fd = serial.Serial()
-        self.raw_data_received = deque()
+        self.raw_data_received = bytearray()
         self.single_read_buffer = single_read_buffer_set
 
 FREQ_BANDS = {
@@ -503,6 +503,26 @@ DECODE_READ_EPC_TAG = {
 FREQ_AUTO_SETTING = {
     0: 'MANUAL',
     1: 'AUTO'
+    }
+
+# Get error discriptions for codes
+ERR_NAME_DICT = {
+    -1001: "send: serial.write exception",
+    -1002: "send: bytes sent not equal bytes requested to send",
+    -1003: "send_general_MID: connection_context is not SerialConnectionContext() object",
+    -2001: "read_general: connection_context is not SerialConnectionContext() object",
+    -2002: "read_general: serial.read exception",
+    -11: "conn_open: port name is not str() type",
+    -12: "conn_open: port name is empty",
+    -13: "conn_open: serial.Serial exception",
+    -14: "conn_open: connection_context is not SerialConnectionContext() object",
+    -21: "conn_close: connection_context is not SerialConnectionContext() object",
+    -24: "conn_close: serial.close exception",
+    -31: "send_stop: connection_context is not SerialConnectionContext() object",
+    -36: "send_stop: serial port descriptor connection_context.device_fd empty",
+    -41: "set_read_timeout: connection_context is not SerialConnectionContext() object",
+    -42: "set_read_timeout: timeout_set must be int or float",
+    -43: "conn_close: serial.timeout set exception"
     }
 
 def post_log_message(message_text, rfid_frame_object = 0, result_resp = 0, put_timestamp = True):
@@ -820,8 +840,10 @@ def read_general(connection_context):
     except Exception as read_general_exception:
         post_log_message("read_general: " + str(read_general_exception))
         return -2002                    
-    connection_context.raw_data_received.append(raw_response_line)
-    del raw_response_line
+    tmp_result_bytes = bytearray()
+    tmp_result_bytes = connection_context.raw_data_received + raw_response_line
+    connection_context.raw_data_received = tmp_result_bytes
+    del raw_response_line, tmp_result_bytes
     return 0
 
 # Return logs to the user
@@ -842,6 +864,18 @@ def log_enable():
 def log_disable():
     global global_logging
     global_logging = False
+
+def set_read_timeout(connection_context, timeout_set):
+    if type(connection_context) != type(SerialConnectionContext()):
+        return -41
+    if (type(timeout_set) != int) and (type(timeout_set) != float):
+        return -42
+    try:
+        connection_context.device_fd.timeout = timeout_set
+    except Exception as set_read_timeout_exception:
+        post_log_message("set_read_timeout: " + str(set_read_timeout_exception))
+        return -43
+    return 0
 
 # Connect method
 def conn_open(connection_context, port_name, baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None):
@@ -879,7 +913,7 @@ def send_stop(connection_context, command_rs485_id):
     if send_general_MID_res == 0:
         read_general_res = read_general(connection_context)
         if read_general_res == 0:
-            post_log_message("send_stop: received [ " + str(byte_to_str(connection_context.raw_data_received.popleft())) + " ]")
+            post_log_message("send_stop: received [ " + byte_to_str(connection_context.raw_data_received) + " ]")
         else:
             return read_general_res
     else:

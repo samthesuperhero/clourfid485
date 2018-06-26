@@ -1,4 +1,4 @@
-ERRNAME = {
+ERR_NAME_DICT = {
     -1001: "send: serial.write exception",
     -1002: "send: bytes sent not equal bytes requested to send",
     -1003: "send_general_MID: connection_context is not SerialConnectionContext() object",
