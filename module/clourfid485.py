@@ -879,7 +879,7 @@ def send_stop(connection_context, command_rs485_id):
     if send_general_MID_res == 0:
         read_general_res = read_general(connection_context)
         if read_general_res == 0:
-            post_log_message("send_stop: received [ " + str(byte_to_str(connection_context.raw_data_received)) + " ]")
+            post_log_message("send_stop: received [ " + str(byte_to_str(connection_context.raw_data_received.popleft())) + " ]")
         else:
             return read_general_res
     else:
