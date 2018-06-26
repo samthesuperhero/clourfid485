@@ -499,30 +499,32 @@ FREQ_AUTO_SETTING = {
     }
 
 def post_log_message(message_text, rfid_frame_object = 0, result_resp = 0, put_timestamp = True):
-    s_tmp = str()
-    if put_timestamp:
-        tmp_time_stamp = time()
-        tmp_gmtime_stamp = gmtime(tmp_time_stamp)
-        s_tmp = s_tmp + strftime("[ %d.%m.%Y %H:%M:%S." + str(tmp_time_stamp - int(tmp_time_stamp))[2:8] + " UTC ] > ", tmp_gmtime_stamp) + message_text
-        del tmp_time_stamp, tmp_gmtime_stamp
-    else:
-        s_tmp = s_tmp + message_text
-    if isinstance(rfid_frame_object, ClouRFIDFrame):
-        s_tmp = s_tmp + " [ " + DECODE_FRAME_ERRORS[result_resp] + " ] "
-        s_tmp = s_tmp + "[ " + rfid_frame_object.message_id + " ] "
-        s_tmp = s_tmp + "[ " + DECODE_PARAM_HEADER_INIT[rfid_frame_object.init_by_reader] + " ] "
-        s_tmp = s_tmp + "[ " + DECODE_PARAM_HEADER_RS485[rfid_frame_object.rs485_mark] + " ] "
-        if rfid_frame_object.rs485_mark == RS485_USED:
-            s_tmp = s_tmp + "[ " + str(rfid_frame_object.rs485_id) + " ] "
-        s_tmp = s_tmp + "[ " + DECODE_PARAM_HEADER_TYPE[rfid_frame_object.message_type] + " ] "
-        s_tmp = s_tmp + "[ DATA LEN = " + "{0:02X}".format(len(rfid_frame_object.data_bytes)) + " ]"
-        s_tmp = s_tmp + " [ "
-        j = 0
-        for j in range(len(rfid_frame_object.data_bytes)):
-            s_tmp = s_tmp + "{0:02X}".format(rfid_frame_object.data_bytes[j]) + " "
-        s_tmp = s_tmp + "]"
-    global_log_list.append(s_tmp)
-    del s_tmp
+    global global_log_list
+    if global_logging:
+        s_tmp = str()
+        if put_timestamp:
+            tmp_time_stamp = time()
+            tmp_gmtime_stamp = gmtime(tmp_time_stamp)
+            s_tmp = s_tmp + strftime("[ %d.%m.%Y %H:%M:%S." + str(tmp_time_stamp - int(tmp_time_stamp))[2:8] + " UTC ] > ", tmp_gmtime_stamp) + message_text
+            del tmp_time_stamp, tmp_gmtime_stamp
+        else:
+            s_tmp = s_tmp + message_text
+        if isinstance(rfid_frame_object, ClouRFIDFrame):
+            s_tmp = s_tmp + " [ " + DECODE_FRAME_ERRORS[result_resp] + " ] "
+            s_tmp = s_tmp + "[ " + rfid_frame_object.message_id + " ] "
+            s_tmp = s_tmp + "[ " + DECODE_PARAM_HEADER_INIT[rfid_frame_object.init_by_reader] + " ] "
+            s_tmp = s_tmp + "[ " + DECODE_PARAM_HEADER_RS485[rfid_frame_object.rs485_mark] + " ] "
+            if rfid_frame_object.rs485_mark == RS485_USED:
+                s_tmp = s_tmp + "[ " + str(rfid_frame_object.rs485_id) + " ] "
+            s_tmp = s_tmp + "[ " + DECODE_PARAM_HEADER_TYPE[rfid_frame_object.message_type] + " ] "
+            s_tmp = s_tmp + "[ DATA LEN = " + "{0:02X}".format(len(rfid_frame_object.data_bytes)) + " ]"
+            s_tmp = s_tmp + " [ "
+            j = 0
+            for j in range(len(rfid_frame_object.data_bytes)):
+                s_tmp = s_tmp + "{0:02X}".format(rfid_frame_object.data_bytes[j]) + " "
+            s_tmp = s_tmp + "]"
+        global_log_list.append(s_tmp)
+        del s_tmp
 
 # to transform bytearray() to string for logging
 def byte_to_str(in_bytes):
@@ -752,44 +754,45 @@ def decode_tag_data_frame(response_frame_data): # decoding tag data frame
     return tag_data_res
 
 def post_log_tag_data(tag_data_object):
-    if type(tag_data_object) != type(TagData()):
-        post_log_message('Error: tag_data_object in post_log_tag_data(tag_data_object) is not TagData()')
-    ss_tmp =                    "Tag EPC code       = "
-    jj = 0
-    for jj in range(len(tag_data_object.EPC_code)):
-        ss_tmp = ss_tmp + "{0:02X}".format(tag_data_object.EPC_code[jj])
-    global_log_list.append(ss_tmp)
-    global_log_list.append(        "Tag EPC len        = " + str(tag_data_object.EPC_len * 16) + " bits")
-    global_log_list.append(        "Tag UMI            = " + str(tag_data_object.UMI))
-    global_log_list.append(        "Tag XPC indicator  = " + str(tag_data_object.XPC_indicator))
-    global_log_list.append(        "Tag num system id  = " + str(tag_data_object.num_sys_id_toggle))
-    global_log_list.append(        "Tag RFU            = 0x" + "{0:02X}".format(tag_data_object.RFU))
-    global_log_list.append(        "Antenna ID         = " + str(tag_data_object.ant_id))
-    for op_keys in tag_data_object.params.keys():
-        if op_keys == TAG_DATA['RSSI']:
-            global_log_list.append("RSSI value         = " + str(tag_data_object.params[op_keys]))
-        elif op_keys == TAG_DATA['TIME']:
-            global_log_list.append("Tag read clock     = " + strftime("%d.%m.%Y %H:%M:%S",  gmtime(tag_data_object.params[op_keys])))
-        elif op_keys == TAG_DATA['SERIES_NUM']:
-            ss_tmp =            "Frame serial num   ="
-            jj = 0
-            for jj in range(len(tag_data_object.params[0x08])):
-                ss_tmp = ss_tmp + " " + "{0:02X}".format(tag_data_object.params[0x08][jj])
-            global_log_list.append(ss_tmp)    
-    del jj, ss_tmp
+    global global_log_list
+    if global_logging:
+        if type(tag_data_object) != type(TagData()):
+            post_log_message('Error: tag_data_object in post_log_tag_data(tag_data_object) is not TagData()')
+        ss_tmp =                    "Tag EPC code       = "
+        jj = 0
+        for jj in range(len(tag_data_object.EPC_code)):
+            ss_tmp = ss_tmp + "{0:02X}".format(tag_data_object.EPC_code[jj])
+        global_log_list.append(ss_tmp)
+        global_log_list.append(        "Tag EPC len        = " + str(tag_data_object.EPC_len * 16) + " bits")
+        global_log_list.append(        "Tag UMI            = " + str(tag_data_object.UMI))
+        global_log_list.append(        "Tag XPC indicator  = " + str(tag_data_object.XPC_indicator))
+        global_log_list.append(        "Tag num system id  = " + str(tag_data_object.num_sys_id_toggle))
+        global_log_list.append(        "Tag RFU            = 0x" + "{0:02X}".format(tag_data_object.RFU))
+        global_log_list.append(        "Antenna ID         = " + str(tag_data_object.ant_id))
+        for op_keys in tag_data_object.params.keys():
+            if op_keys == TAG_DATA['RSSI']:
+                global_log_list.append("RSSI value         = " + str(tag_data_object.params[op_keys]))
+            elif op_keys == TAG_DATA['TIME']:
+                global_log_list.append("Tag read clock     = " + strftime("%d.%m.%Y %H:%M:%S",  gmtime(tag_data_object.params[op_keys])))
+            elif op_keys == TAG_DATA['SERIES_NUM']:
+                ss_tmp =            "Frame serial num   ="
+                jj = 0
+                for jj in range(len(tag_data_object.params[0x08])):
+                    ss_tmp = ss_tmp + " " + "{0:02X}".format(tag_data_object.params[0x08][jj])
+                global_log_list.append(ss_tmp)    
+        del jj, ss_tmp
 
 # General send method
 def send_general_MID(command_rs485_id, command_MID, command_message_type, command_start_data_with_len, command_data_bytes):
+    global global_device_fd
     request_frame = ClouRFIDFrame(command_MID, command_message_type, INIT_BY_USER, RS485_USED, command_rs485_id, command_data_bytes)
     request_frame.start_data_with_len = command_start_data_with_len
     request_frame.encodeFrame()
     command_data_bytes_sent = 0
     try:
         command_data_bytes_sent = global_device_fd.write(request_frame.frame_raw_line)
-        print(command_data_bytes_sent)        
     except Exception as send_general_MID_exception:
         post_log_message("send: " + str(send_general_MID_exception))
-        print("except")
         return -1
     if  command_data_bytes_sent != len(request_frame.frame_raw_line):
         post_log_message('send: error, sent ' + str(command_data_bytes_sent) + ' bytes, requested ' + str(len(request_frame.frame_raw_line)) + ' bytes: ', request_frame, 0)
@@ -805,18 +808,22 @@ def get_log():
 
 # Flush log list
 def flush_log():
+    global global_log_list
     global_log_list = list()
 
 # Enable log writing
 def log_enable():
+    global global_logging
     global_logging = True
 
 # Disable log writing
 def log_disable():
+    global global_logging
     global_logging = False
 
 # Connect method
 def conn_open(port_name, baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None):
+    global global_device_fd
     if type(port_name) != str:
         post_log_message("conn_open: port name is not str() type")
         return -1
@@ -832,6 +839,7 @@ def conn_open(port_name, baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial
 
 # Close method
 def conn_close():
+    global global_device_fd
     try:
         global_device_fd.close()
     except Exception as conn_close_exception:
@@ -841,6 +849,7 @@ def conn_close():
 
 # Send OP_STOP, wait for answer, decode, and return result
 def send_stop(command_rs485_id, timeout_to_wait):
+    global global_device_fd
     if global_device_fd == serial.Serial():
         post_log_message("send_stop: serial port descriptor empty")
         return -1
