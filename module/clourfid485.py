@@ -9,9 +9,8 @@ from json import load, loads, dumps, dump
 from collections import deque
 import serial
 
-global_logging = False
+global_logging_level = 0
 global_log_list = list()
-global_device_fd = serial.Serial()
 
 """
 --- Frame ---
@@ -468,7 +467,8 @@ class ReaderParameters:     # Parameters of reader
 class SerialConnectionContext:
     def __init__(self, single_read_buffer_set = 2**14):
         self.device_fd = serial.Serial()
-        self.raw_data_received = bytearray()
+        self.raw_data_received_buffer = bytearray()
+        self.ClouRFIDFrame_list = list()
         self.single_read_buffer = single_read_buffer_set
 
 FREQ_BANDS = {
@@ -507,11 +507,6 @@ FREQ_AUTO_SETTING = {
 
 # Get error discriptions for codes
 ERR_NAME_DICT = {
-    -1001: "send: serial.write exception",
-    -1002: "send: bytes sent not equal bytes requested to send",
-    -1003: "send_general_MID: connection_context is not SerialConnectionContext() object",
-    -2001: "read_general: connection_context is not SerialConnectionContext() object",
-    -2002: "read_general: serial.read exception",
     -11: "conn_open: port name is not str() type",
     -12: "conn_open: port name is empty",
     -13: "conn_open: serial.Serial exception",
@@ -522,12 +517,20 @@ ERR_NAME_DICT = {
     -36: "send_stop: serial port descriptor connection_context.device_fd empty",
     -41: "set_read_timeout: connection_context is not SerialConnectionContext() object",
     -42: "set_read_timeout: timeout_set must be int or float",
-    -43: "conn_close: serial.timeout set exception"
+    -43: "conn_close: serial.timeout set exception",
+    -51: "logging_level_set: global_logging_level_set must be int",
+    -52: "logging_level_set: global_logging_level_set availabel values: 0, 1, 2",
+    -1001: "send: serial.write exception",
+    -1002: "send: bytes sent not equal bytes requested to send",
+    -1003: "send_general_MID: connection_context is not SerialConnectionContext() object",
+    -2001: "read_general: connection_context is not SerialConnectionContext() object",
+    -2002: "read_general: serial.read exception",
+    -3001: "split_raw_data_received_buffer: connection_context is not SerialConnectionContext() object"
     }
 
 def post_log_message(message_text, rfid_frame_object = 0, result_resp = 0, put_timestamp = True):
     global global_log_list
-    if global_logging:
+    if global_logging_level > 0:
         s_tmp = str()
         if put_timestamp:
             tmp_time_stamp = time()
@@ -782,7 +785,7 @@ def decode_tag_data_frame(response_frame_data): # decoding tag data frame
 
 def post_log_tag_data(tag_data_object):
     global global_log_list
-    if global_logging:
+    if global_logging_level > 0:
         if type(tag_data_object) != type(TagData()):
             post_log_message('Error: tag_data_object in post_log_tag_data(tag_data_object) is not TagData()')
         ss_tmp =                    "Tag EPC code       = "
@@ -841,9 +844,116 @@ def read_general(connection_context):
         post_log_message("read_general: " + str(read_general_exception))
         return -2002                    
     tmp_result_bytes = bytearray()
-    tmp_result_bytes = connection_context.raw_data_received + raw_response_line
-    connection_context.raw_data_received = tmp_result_bytes
+    tmp_result_bytes = connection_context.raw_data_received_buffer + raw_response_line
+    connection_context.raw_data_received_buffer = tmp_result_bytes
     del raw_response_line, tmp_result_bytes
+    return 0
+
+def split_raw_data_received_buffer(connection_context):
+    if type(connection_context) != type(SerialConnectionContext()):
+        return -3001
+    # ============================= original ===================
+    """
+    response_raw_line_stream = connection_context.raw_data_received_buffer
+    while len(response_raw_line_stream) >= 7:
+        tmp_idx = 0 # if there are more than one 0xAA in a response_raw_line_stream?
+        tmp_idx_break_flag = True
+        # debug logging ====
+        if global_logging_level > 2: post_log_message("response_raw_line_stream = " + byte_to_str(response_raw_line_stream))
+        # ==================
+        while tmp_idx_break_flag:
+            response_raw_line_AA_idx = response_raw_line_stream.find(chr(0xAA), tmp_idx)
+            # here check whether there are possibility to have correct packet from reader in a string
+            # this below is only if there is a good chance to have
+            # the correct message fully collected from TCP
+
+            # debug logging ====
+            if global_logging_level > 2: post_log_message("response_raw_line_AA_idx = " + str(response_raw_line_AA_idx) + ", tmp_idx = " + str(tmp_idx))
+            # ==================
+            if (response_raw_line_AA_idx > -1) and ((len(response_raw_line_stream) - response_raw_line_AA_idx) >= 7):
+                tmp_idx = response_raw_line_AA_idx + 1
+                res_cut_line_tmp = str()
+                res_cut_line_tmp += response_raw_line_stream[0 + response_raw_line_AA_idx]
+                res_cut_line_tmp += response_raw_line_stream[1 + response_raw_line_AA_idx]
+                res_cut_line_tmp += response_raw_line_stream[2 + response_raw_line_AA_idx]
+                res_cut_line_tmp += response_raw_line_stream[3 + response_raw_line_AA_idx]
+                res_cut_line_tmp += response_raw_line_stream[4 + response_raw_line_AA_idx]
+                len_tmp = (256 * ord(response_raw_line_stream[3 + response_raw_line_AA_idx])) + ord(response_raw_line_stream[4 + response_raw_line_AA_idx])
+                if (len_tmp <= 1024) and ((len(response_raw_line_stream) - response_raw_line_AA_idx) >= (7 + len_tmp)):
+                    res_cut_line_tmp += response_raw_line_stream[(5 + response_raw_line_AA_idx):(5 + len_tmp + 2 + response_raw_line_AA_idx)]
+                    # debug logging ====
+                    if global_logging_level > 2: post_log_message("res_cut_line_tmp = " + byte_to_str(res_cut_line_tmp))
+                    # ==================
+                    crc16_func = mkCrcFun(0x10000+0x8005, initCrc = 0, rev = False)        
+                    res_cut_line_tmp_crc = res_cut_line_tmp[1:-2]
+                    crc16_value = crc16_func(res_cut_line_tmp_crc)
+                    crc16_msb = crc16_value // 256
+                    crc16_lsb = crc16_value % 256
+                    # ==================
+                    if (crc16_msb == ord(res_cut_line_tmp[-2:-1])) and (crc16_lsb == ord(res_cut_line_tmp[-1:])):
+                        if res_cut_line_tmp[0] == chr(0xAA) and res_cut_line_tmp[1] == chr(0x12) and res_cut_line_tmp[2] == chr(0x00):
+                            # ======== Decoding of EPC data upload is always here =========
+                            epc_data = TagData()
+                            epc_data = decode_tag_data_frame(str_to_byte(res_cut_line_tmp[3:-2]))
+                            if global_logging_level > 1:
+                                response_frame_tmp = ClouRFIDFrame()
+                                response_frame_tmp.frame_raw_line = str_to_byte(res_cut_line_tmp)
+                                res_decode_tmp = response_frame_tmp.decodeFrame()
+                                post_log_message('recieved from reader', response_frame_tmp, res_decode_tmp)
+                                del response_frame_tmp, res_decode_tmp
+                                post_log_tag_data(epc_data)
+                            if 0x08 in epc_data.params.keys():
+                                request_frame_epc_data = ClouRFIDFrame('MAN_TAG_DATA_RESPONSE', TYPE_CONF_MANAGE, INIT_BY_USER, RS485_NOT_USED, epc_data.params[0x08])
+                                request_frame_epc_data.encodeFrame()
+                                request_frame_epc_data_line += request_frame_epc_data.frame_raw_line
+                                request_frame_epc_data_count += 1
+                                del request_frame_epc_data
+                            if epc_data.EPC_code not in read_tags_table_EPC:
+                                if active_ssid > 0: # Writing the WHOLE table with tag data to file and closing it
+                                    tmp_data_enc_dict = epc_data.encodeInDict()
+                                    read_tags_table.append(tmp_data_enc_dict)
+                                    read_tags_table_EPC.append(epc_data.EPC_code)
+                                    ssid_file_open_result = True
+                                    try:
+                                        file_ssid = open(this_app_ssid + str(active_ssid), "w")
+                                    except Exception as ssid_file_exception:
+                                        post_log_message("Error open ssid file " + this_app_ssid + str(active_ssid) + ": {0} ({1})".format(ssid_file_exception.errno, ssid_file_exception.strerror))
+                                        ssid_file_open_result = False
+                                    if ssid_file_open_result:
+                                        dump(read_tags_table, file_ssid, skipkeys = True) # write all JSON table to file
+                                        file_ssid.close()
+                                    del ssid_file_open_result, tmp_data_enc_dict
+                                else:
+                                    post_log_message("Recieved tag data while active_ssid = 0, ignored")
+                                if (app_config_json["log-tag-dialog-style"] == "partly" or app_config_json["log-tag-dialog-style"] == "full") and (active_ssid > 0):
+                                    response_frame_tmp = ClouRFIDFrame()
+                                    response_frame_tmp.frame_raw_line = str_to_byte(res_cut_line_tmp)
+                                    res_decode_tmp = response_frame_tmp.decodeFrame()
+                                    post_log_message('recieved from reader', response_frame_tmp, res_decode_tmp)
+                                    del response_frame_tmp, res_decode_tmp
+                                    post_log_tag_data(epc_data)
+                            del epc_data
+                            # ===== end decoding of EPC data upload ==========
+                        else:
+                            inc_mes_stack.append(res_cut_line_tmp)
+                        new_raw_line = str()
+                        new_raw_line = response_raw_line_stream[(len(res_cut_line_tmp) + response_raw_line_AA_idx):]
+                        # debug logging ====
+                        if global_logging_level > 2: post_log_message("new_raw_line = " + byte_to_str(new_raw_line))
+                        # ==================
+                        if response_raw_line_AA_idx > 0:
+                            post_log_message("Unknown byte content got from reader: " + byte_to_str(response_raw_line_stream[:response_raw_line_AA_idx]))
+                        response_raw_line_stream = new_raw_line
+                        tmp_idx_break_flag = False
+                        del new_raw_line
+                    del crc16_msb, crc16_lsb, crc16_value, crc16_func, res_cut_line_tmp_crc
+                del res_cut_line_tmp, len_tmp
+            else:
+                tmp_idx_break_flag = False
+            del response_raw_line_AA_idx
+        del tmp_idx, tmp_idx_break_flag
+    """
+    # ==========================================================
     return 0
 
 # Return logs to the user
@@ -856,15 +966,16 @@ def flush_log():
     global_log_list = list()
 
 # Enable log writing
-def log_enable():
-    global global_logging
-    global_logging = True
+def logging_level_set(global_logging_level_set):
+    global global_logging_level
+    if type(global_logging_level_set) != int:
+        return -51
+    if (global_logging_level_set < 0) or (global_logging_level_set > 2):
+        return -52
+    global_logging_level = global_logging_level_set
+    return 0
 
-# Disable log writing
-def log_disable():
-    global global_logging
-    global_logging = False
-
+# Set reading timout
 def set_read_timeout(connection_context, timeout_set):
     if type(connection_context) != type(SerialConnectionContext()):
         return -41
@@ -913,7 +1024,11 @@ def send_stop(connection_context, command_rs485_id):
     if send_general_MID_res == 0:
         read_general_res = read_general(connection_context)
         if read_general_res == 0:
-            post_log_message("send_stop: received [ " + byte_to_str(connection_context.raw_data_received) + " ]")
+            split_res = split_raw_data_received_buffer(connection_context)
+            if split_res == 0:
+                pass
+            else:
+                return split_res
         else:
             return read_general_res
     else:
