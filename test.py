@@ -4,7 +4,7 @@ clourfid485.logging_level_set(1)
 
 reader_inst_1 = clourfid485.ClouRFIDReader(42)
 
-print("reader_inst_1 opened = ", reader_inst_1.conn_open("/dev/ttyUSB1", 115200, timeout = 1))
+print("reader_inst_1 opened = ", reader_inst_1.conn_open("/dev/ttyUSB1", 115200, timeout = 0.2))
 print("reader_inst_1.send_stop(): ", reader_inst_1.send_stop())
 print("reader_inst_1.send_scan_once(): ", reader_inst_1.send_scan_once([1]))
 print("\n")
