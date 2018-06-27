@@ -1,9 +1,9 @@
 import clourfid485
 
-reder_inst_1 = clourfid485.SerialConnectionContext()
-reder_inst_2 = clourfid485.SerialConnectionContext()
+reder_inst_1 = clourfid485.SerialConnectionContext(42)
+reder_inst_2 = clourfid485.SerialConnectionContext(42)
 
-clourfid485.log_enable()
+clourfid485.logging_level_set(1)
 
 print("1 o ", reder_inst_1.conn_open("/dev/ttyUSB1", 115200, timeout = 1))
 
