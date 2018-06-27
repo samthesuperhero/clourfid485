@@ -7,14 +7,12 @@ reader_inst_1 = clourfid485.ClouRFIDReader(42)
 print("reader_inst_1 opened = ", reader_inst_1.conn_open("/dev/ttyUSB1", 115200, timeout = 1))
 print("reader_inst_1.send_stop(): ", reader_inst_1.send_stop())
 print("reader_inst_1.send_scan_once(): ", reader_inst_1.send_scan_once([1]))
-print("\n")
 print(reader_inst_1.get_json_output())
-print("\n")
 print("reader_inst_1 closed = ", reader_inst_1.conn_close())
 
 log_sheet = clourfid485.get_log()
 i = 0
 for i in range(len(log_sheet)):
-    print(log_sheet[i] + "\n")
+    print(log_sheet[i])
 
 print("\nSuccess!\n")

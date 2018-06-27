@@ -853,7 +853,7 @@ class ClouRFIDReader:
             post_log_message('SENT: ', request_frame, 0)
         del request_frame, command_data_bytes_sent
         return 0
-    # Split _raw_data_received_buffer line into  list of frames _split_frames_received_list
+    # Split _raw_data_received_buffer line into list of frames _split_frames_received_list, and cleans it
     def _split_raw_data_received_buffer(self):
         while len(self._raw_data_received_buffer) >= 8:
             response_raw_line_stream = str(self._raw_data_received_buffer)            
@@ -907,6 +907,7 @@ class ClouRFIDReader:
                     tmp_idx_break_flag = False
                 del response_raw_line_AA_idx
             del response_raw_line_stream, tmp_idx, tmp_idx_break_flag
+        self._raw_data_received_buffer = bytearray()
     # General read method
     def _read_general(self):
         raw_response_line = bytearray()
@@ -923,16 +924,9 @@ class ClouRFIDReader:
         del raw_response_line, tmp_result_bytes
         # Here we extracting frames until all recognized are extracted
         # all that is not a frame is left intact in self._raw_data_received_buffer
-        prev_split_frames_len = len(self._split_frames_received_list)
-        prev_split_len = 0
-        after_split_len = -1
-        while after_split_len < prev_split_len:
-            prev_split_len = len(self._raw_data_received_buffer)
-            self._split_raw_data_received_buffer()
-            after_split_len = len(self._raw_data_received_buffer)
-        del prev_split_len, after_split_len
-        frames_received_cnt = len(self._split_frames_received_list) - prev_split_frames_len
-        del prev_split_frames_len
+        self._split_frames_received_list = list()
+        self._split_raw_data_received_buffer()
+        frames_received_cnt = len(self._split_frames_received_list)
         # Return how many frames recognized and added to self._split_frames_received_list
         return frames_received_cnt
     # Connect method
