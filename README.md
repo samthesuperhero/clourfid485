@@ -2,6 +2,7 @@
 A Python module to connect to Clou (Hopeland) RFID readers via RS 485
 
 === Short description =====
+
 First create the reader class instance,
 
 your_clou_reader_instance = clourfid485.ClouRFIDReader(int ID of reader on RS485 bus)
