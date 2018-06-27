@@ -853,7 +853,7 @@ class ClouRFIDReader:
             post_log_message('SENT: ', request_frame, 0)
         del request_frame, command_data_bytes_sent
         return 0
-    # Split _raw_data_received_buffer line into  list of frames _split_frames_received_list
+    # Split _raw_data_received_buffer line into list of frames _split_frames_received_list, and cleans it
     def _split_raw_data_received_buffer(self):
         while len(self._raw_data_received_buffer) >= 8:
             response_raw_line_stream = str(self._raw_data_received_buffer)            
@@ -935,7 +935,7 @@ class ClouRFIDReader:
         del prev_split_frames_len
         # Return how many frames recognized and added to self._split_frames_received_list
         return frames_received_cnt
-    # Connect method
+    # Connect methods
     def conn_open(self, port_name, baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None):
         if type(port_name) != str:
             return -11
@@ -1013,6 +1013,7 @@ class ClouRFIDReader:
                 i = 0
                 found_OK_frame = False
                 tag_data_out_list = list()
+                read_tags_table_EPC = list()
                 temp_split_frames_received_list = self._split_frames_received_list
                 self._split_frames_received_list = list()
                 for i in range(len(temp_split_frames_received_list)):
@@ -1033,19 +1034,20 @@ class ClouRFIDReader:
                             res_cut_line_tmp = bytearray(temp_split_frames_received_list[i])
                             epc_data = TagData()
                             epc_data = decode_tag_data_frame(res_cut_line_tmp[4:-2])
-                            tag_data_out_list.append(epc_data.encodeInDict())
+                            if epc_data.EPC_code not in read_tags_table_EPC:
+                                read_tags_table_EPC.append(epc_data.EPC_code)
+                                tag_data_out_list.append(epc_data.encodeInDict())
                             del res_cut_line_tmp, epc_data
                     else:
                         post_log_message("send_scan_once(): error decoding frame -> ", response_raw_frame, res_decode_frame)                        
                 del temp_split_frames_received_list
-
                 if found_OK_frame:
                     tags_read_cnt = len(tag_data_out_list)
                     if tags_read_cnt > 0:
                         self._json_output = dumps(tag_data_out_list, skipkeys = True)
                 else:
                     return -64
-                del tag_data_out_list
+                del tag_data_out_list, read_tags_table_EPC
         else:
             return send_general_MID_res
         del send_general_MID_res
