@@ -851,8 +851,8 @@ class SerialConnectionContext:
         return 0
     # Split _raw_data_received_buffer line into  list of frames _split_frames_received_list
     def _split_raw_data_received_buffer(self):
-        response_raw_line_stream = str(self._raw_data_received_buffer)
-        while len(response_raw_line_stream) >= 8:
+        while len(self._raw_data_received_buffer) >= 8:
+            response_raw_line_stream = str(self._raw_data_received_buffer)            
             tmp_idx = 0 # if there are more than one 0xAA in a response_raw_line_stream?
             tmp_idx_break_flag = True
             # debug logging ====
@@ -902,8 +902,7 @@ class SerialConnectionContext:
                 else:
                     tmp_idx_break_flag = False
                 del response_raw_line_AA_idx
-            del tmp_idx, tmp_idx_break_flag
-        del response_raw_line_stream
+            del response_raw_line_stream, tmp_idx, tmp_idx_break_flag
     # General read method
     def _read_general(self):
         raw_response_line = bytearray()
