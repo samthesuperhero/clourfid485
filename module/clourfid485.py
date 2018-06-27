@@ -924,12 +924,14 @@ class ClouRFIDReader:
         del raw_response_line, tmp_result_bytes
         # Here we extracting frames until all recognized are extracted
         # all that is not a frame is left intact in self._raw_data_received_buffer
+        print(byte_to_str(self._raw_data_received_buffer))
         self._split_frames_received_list = list()
         self._split_raw_data_received_buffer()
         frames_received_cnt = len(self._split_frames_received_list)
         # Return how many frames recognized and added to self._split_frames_received_list
+        print(frames_received_cnt)
         return frames_received_cnt
-    # Connect method
+    # Connect methods
     def conn_open(self, port_name, baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None):
         if type(port_name) != str:
             return -11
