@@ -1,21 +1,20 @@
 import clourfid485
 
-reder_inst_1 = clourfid485.SerialConnectionContext(42)
-reder_inst_2 = clourfid485.SerialConnectionContext(42)
-
 clourfid485.logging_level_set(1)
 
-print("1 o ", reder_inst_1.conn_open("/dev/ttyUSB1", 115200, timeout = 1))
+reader_inst_1 = clourfid485.SerialConnectionContext(42)
+reader_inst_2 = clourfid485.SerialConnectionContext(42)
 
-print("2 o ", reder_inst_2.conn_open("/dev/ttyUSB1", 115200, timeout = 1))
+print("reader_inst_1 opened = ", reader_inst_1.conn_open("/dev/ttyUSB1", 115200, timeout = 1))
+print("reader_inst_2 opened = ", reader_inst_2.conn_open("/dev/ttyUSB1", 115200, timeout = 1))
 
-# print(clourfid485.send_stop(sr_cont, 42))
+print("reader_inst_1.send_stop(): ", reader_inst_1.send_stop())
+print("reader_inst_2.send_stop(): ", reader_inst_2.send_stop())
 
-print("2 c ", reder_inst_2.conn_close())
+print("reader_inst_2 closed = ", reader_inst_2.conn_close())
+print("reader_inst_1 closed = ", reader_inst_1.conn_close())
 
-print("1 c ", reder_inst_1.conn_close())
-
-
-print(clourfid485.get_log())
+for log_line in clourfid485.get_log():
+    print(log_line, "\n")
 
 print("\nSuccess!\n")
