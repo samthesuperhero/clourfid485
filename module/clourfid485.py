@@ -472,7 +472,7 @@ class SerialConnectionContext:
         self._ClouRFIDFrame_list = list()
         self._single_read_buffer = single_read_buffer_set
     # Connect method
-    def conn_open(port_name, baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None):
+    def conn_open(self, port_name, baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None):
         #if type(connection_context) != type(SerialConnectionContext()):
         #    return -14
         if type(port_name) != str:
@@ -486,7 +486,7 @@ class SerialConnectionContext:
             return -13
         return 0
     # Close method
-    def conn_close():
+    def conn_close(self):
         #if type(connection_context) != type(SerialConnectionContext()):
         #    return -21
         try:
