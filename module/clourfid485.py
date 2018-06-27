@@ -907,7 +907,6 @@ class ClouRFIDReader:
                     tmp_idx_break_flag = False
                 del response_raw_line_AA_idx
             del response_raw_line_stream, tmp_idx, tmp_idx_break_flag
-        self._raw_data_received_buffer = bytearray()
     # General read method
     def _read_general(self):
         raw_response_line = bytearray()
@@ -924,12 +923,17 @@ class ClouRFIDReader:
         del raw_response_line, tmp_result_bytes
         # Here we extracting frames until all recognized are extracted
         # all that is not a frame is left intact in self._raw_data_received_buffer
-        print(byte_to_str(self._raw_data_received_buffer))
-        self._split_frames_received_list = list()
-        self._split_raw_data_received_buffer()
-        frames_received_cnt = len(self._split_frames_received_list)
+        prev_split_frames_len = len(self._split_frames_received_list)
+        prev_split_len = 0
+        after_split_len = -1
+        while after_split_len < prev_split_len:
+            prev_split_len = len(self._raw_data_received_buffer)
+            self._split_raw_data_received_buffer()
+            after_split_len = len(self._raw_data_received_buffer)
+        del prev_split_len, after_split_len
+        frames_received_cnt = len(self._split_frames_received_list) - prev_split_frames_len
+        del prev_split_frames_len
         # Return how many frames recognized and added to self._split_frames_received_list
-        print(frames_received_cnt)
         return frames_received_cnt
     # Connect methods
     def conn_open(self, port_name, baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None):
@@ -1009,6 +1013,7 @@ class ClouRFIDReader:
                 i = 0
                 found_OK_frame = False
                 tag_data_out_list = list()
+                read_tags_table_EPC = list()
                 temp_split_frames_received_list = self._split_frames_received_list
                 self._split_frames_received_list = list()
                 for i in range(len(temp_split_frames_received_list)):
@@ -1029,19 +1034,20 @@ class ClouRFIDReader:
                             res_cut_line_tmp = bytearray(temp_split_frames_received_list[i])
                             epc_data = TagData()
                             epc_data = decode_tag_data_frame(res_cut_line_tmp[4:-2])
-                            tag_data_out_list.append(epc_data.encodeInDict())
+                            if epc_data.EPC_code not in read_tags_table_EPC:
+                                read_tags_table_EPC.append(epc_data.EPC_code)
+                                tag_data_out_list.append(epc_data.encodeInDict())
                             del res_cut_line_tmp, epc_data
                     else:
                         post_log_message("send_scan_once(): error decoding frame -> ", response_raw_frame, res_decode_frame)                        
                 del temp_split_frames_received_list
-
                 if found_OK_frame:
                     tags_read_cnt = len(tag_data_out_list)
                     if tags_read_cnt > 0:
                         self._json_output = dumps(tag_data_out_list, skipkeys = True)
                 else:
                     return -64
-                del tag_data_out_list
+                del tag_data_out_list, read_tags_table_EPC
         else:
             return send_general_MID_res
         del send_general_MID_res
