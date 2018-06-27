@@ -312,6 +312,64 @@ DECODE_AREA_DATA_PARAMETER = {
     7: "Other reader error"
 }
 
+
+FREQ_BANDS = {
+    0: '920~925MHz',
+    1: '840~845MHz',
+    2: '840~845MHz & 920~925MHz',
+    3: 'FCC: 902~928MHz',
+    4: 'ETSI: 866~868MHz',
+    5: 'JP: 916.8~920.4MHz',
+    6: 'TW: 922.25~927.75MHz',
+    7: 'ID: 923.125~925.125MHz',
+    8: 'RU: 866.6~867.4MHz'
+    }
+
+RFID_PROTOCOLS = {
+    0: 'ISO18000-6C/EPC C1G2',
+    1: 'ISO18000-6B',
+    2: 'China standard GB/T 29768-2013',
+    3: 'China Military GJB 7383.1-2011'
+    }
+
+DECODE_READ_EPC_TAG = {
+    0: 'Configure successfully',
+    1: 'Antenna port parameter error',
+    2: 'Select read parameter error',
+    3: 'TID read parameter error',
+    4: 'User data area read parameter error',
+    5: 'Retention area read parameter error',
+    6: 'Other parameter error'
+    }
+
+FREQ_AUTO_SETTING = {
+    0: 'MANUAL',
+    1: 'AUTO'
+    }
+
+# Get error discriptions for codes
+ERR_NAME_DICT = {
+    -11: "conn_open: port name is not str() type",
+    -12: "conn_open: port name is empty",
+    -13: "conn_open: serial.Serial() exception",
+    -24: "conn_close: serial.close() exception",
+    -31: "send_stop: response frame from reader decoded with error",
+    -32: "send_stop: not received OK from reader",
+    -33: "send_stop: reader answered with error",
+    -36: "send_stop: serial port descriptor connection_context.device_fd empty",
+    -42: "set_read_timeout: timeout_set must be int or float",
+    -43: "conn_close: serial.timeout set exception",
+    -51: "logging_level_set: global_logging_level_set must be int",
+    -52: "logging_level_set: global_logging_level_set availabel values: 0, 1, 2",
+    -61: "send_scan_once: serial port descriptor connection_context.device_fd empty",
+    -62: "send_scan_once: reader not answered during timeout",
+    -64: "send_scan_once: not received OK from reader",
+    -65: "send_scan_once: reader answered with error",
+    -1001: "send: serial.write() exception",
+    -1002: "send: bytes sent not equal bytes requested to send",
+    -2002: "read_general: serial.read() exception",
+    }
+
 class TagData:              # data structure for RFID tag
     def __init__(self):
         self.EPC_code = bytearray()
@@ -463,70 +521,6 @@ class ReaderParameters:     # Parameters of reader
         self.antenna_qty = 0
         self.freq_band_list = list()
         self.rfid_protocol_list = list()
-
-class SerialConnectionContext:
-    def __init__(self, single_read_buffer_set = 2**14):
-        self.device_fd = serial.Serial()
-        self.raw_data_received_buffer = bytearray()
-        self.ClouRFIDFrame_list = list()
-        self.single_read_buffer = single_read_buffer_set
-
-FREQ_BANDS = {
-    0: '920~925MHz',
-    1: '840~845MHz',
-    2: '840~845MHz & 920~925MHz',
-    3: 'FCC: 902~928MHz',
-    4: 'ETSI: 866~868MHz',
-    5: 'JP: 916.8~920.4MHz',
-    6: 'TW: 922.25~927.75MHz',
-    7: 'ID: 923.125~925.125MHz',
-    8: 'RU: 866.6~867.4MHz'
-    }
-
-RFID_PROTOCOLS = {
-    0: 'ISO18000-6C/EPC C1G2',
-    1: 'ISO18000-6B',
-    2: 'China standard GB/T 29768-2013',
-    3: 'China Military GJB 7383.1-2011'
-    }
-
-DECODE_READ_EPC_TAG = {
-    0: 'Configure successfully',
-    1: 'Antenna port parameter error',
-    2: 'Select read parameter error',
-    3: 'TID read parameter error',
-    4: 'User data area read parameter error',
-    5: 'Retention area read parameter error',
-    6: 'Other parameter error'
-    }
-
-FREQ_AUTO_SETTING = {
-    0: 'MANUAL',
-    1: 'AUTO'
-    }
-
-# Get error discriptions for codes
-ERR_NAME_DICT = {
-    -11: "conn_open: port name is not str() type",
-    -12: "conn_open: port name is empty",
-    -13: "conn_open: serial.Serial exception",
-    -14: "conn_open: connection_context is not SerialConnectionContext() object",
-    -21: "conn_close: connection_context is not SerialConnectionContext() object",
-    -24: "conn_close: serial.close exception",
-    -31: "send_stop: connection_context is not SerialConnectionContext() object",
-    -36: "send_stop: serial port descriptor connection_context.device_fd empty",
-    -41: "set_read_timeout: connection_context is not SerialConnectionContext() object",
-    -42: "set_read_timeout: timeout_set must be int or float",
-    -43: "conn_close: serial.timeout set exception",
-    -51: "logging_level_set: global_logging_level_set must be int",
-    -52: "logging_level_set: global_logging_level_set availabel values: 0, 1, 2",
-    -1001: "send: serial.write exception",
-    -1002: "send: bytes sent not equal bytes requested to send",
-    -1003: "send_general_MID: connection_context is not SerialConnectionContext() object",
-    -2001: "read_general: connection_context is not SerialConnectionContext() object",
-    -2002: "read_general: serial.read exception",
-    -3001: "split_raw_data_received_buffer: connection_context is not SerialConnectionContext() object"
-    }
 
 def post_log_message(message_text, rfid_frame_object = 0, result_resp = 0, put_timestamp = True):
     global global_log_list
@@ -812,150 +806,6 @@ def post_log_tag_data(tag_data_object):
                 global_log_list.append(ss_tmp)    
         del jj, ss_tmp
 
-# General send method
-def send_general_MID(connection_context, command_rs485_id, command_MID, command_message_type, command_start_data_with_len, command_data_bytes):
-    if type(connection_context) != type(SerialConnectionContext()):
-        return -1003
-    request_frame = ClouRFIDFrame(command_MID, command_message_type, INIT_BY_USER, RS485_USED, command_rs485_id, command_data_bytes)
-    request_frame.start_data_with_len = command_start_data_with_len
-    request_frame.encodeFrame()
-    command_data_bytes_sent = 0
-    try:
-        command_data_bytes_sent = connection_context.device_fd.write(request_frame.frame_raw_line)
-    except Exception as send_general_MID_exception:
-        post_log_message("send: " + str(send_general_MID_exception))
-        return -1001
-    if  command_data_bytes_sent != len(request_frame.frame_raw_line):
-        post_log_message('send: error, sent ' + str(command_data_bytes_sent) + ' bytes, requested ' + str(len(request_frame.frame_raw_line)) + ' bytes: ', request_frame, 0)
-        return -1002
-    else:
-        post_log_message('Sent successfully: ', request_frame, 0)
-    del request_frame, command_data_bytes_sent
-    return 0
-
-# General read method
-def read_general(connection_context):
-    if type(connection_context) != type(SerialConnectionContext()):
-        return -2001
-    raw_response_line = bytearray()
-    try:
-        raw_response_line = connection_context.device_fd.read(connection_context.single_read_buffer)           
-    except Exception as read_general_exception:
-        post_log_message("read_general: " + str(read_general_exception))
-        return -2002                    
-    tmp_result_bytes = bytearray()
-    tmp_result_bytes = connection_context.raw_data_received_buffer + raw_response_line
-    connection_context.raw_data_received_buffer = tmp_result_bytes
-    del raw_response_line, tmp_result_bytes
-    return 0
-
-def split_raw_data_received_buffer(connection_context):
-    if type(connection_context) != type(SerialConnectionContext()):
-        return -3001
-    # ============================= original ===================
-    """
-    response_raw_line_stream = connection_context.raw_data_received_buffer
-    while len(response_raw_line_stream) >= 7:
-        tmp_idx = 0 # if there are more than one 0xAA in a response_raw_line_stream?
-        tmp_idx_break_flag = True
-        # debug logging ====
-        if global_logging_level > 2: post_log_message("response_raw_line_stream = " + byte_to_str(response_raw_line_stream))
-        # ==================
-        while tmp_idx_break_flag:
-            response_raw_line_AA_idx = response_raw_line_stream.find(chr(0xAA), tmp_idx)
-            # here check whether there are possibility to have correct packet from reader in a string
-            # this below is only if there is a good chance to have
-            # the correct message fully collected from TCP
-
-            # debug logging ====
-            if global_logging_level > 2: post_log_message("response_raw_line_AA_idx = " + str(response_raw_line_AA_idx) + ", tmp_idx = " + str(tmp_idx))
-            # ==================
-            if (response_raw_line_AA_idx > -1) and ((len(response_raw_line_stream) - response_raw_line_AA_idx) >= 7):
-                tmp_idx = response_raw_line_AA_idx + 1
-                res_cut_line_tmp = str()
-                res_cut_line_tmp += response_raw_line_stream[0 + response_raw_line_AA_idx]
-                res_cut_line_tmp += response_raw_line_stream[1 + response_raw_line_AA_idx]
-                res_cut_line_tmp += response_raw_line_stream[2 + response_raw_line_AA_idx]
-                res_cut_line_tmp += response_raw_line_stream[3 + response_raw_line_AA_idx]
-                res_cut_line_tmp += response_raw_line_stream[4 + response_raw_line_AA_idx]
-                len_tmp = (256 * ord(response_raw_line_stream[3 + response_raw_line_AA_idx])) + ord(response_raw_line_stream[4 + response_raw_line_AA_idx])
-                if (len_tmp <= 1024) and ((len(response_raw_line_stream) - response_raw_line_AA_idx) >= (7 + len_tmp)):
-                    res_cut_line_tmp += response_raw_line_stream[(5 + response_raw_line_AA_idx):(5 + len_tmp + 2 + response_raw_line_AA_idx)]
-                    # debug logging ====
-                    if global_logging_level > 2: post_log_message("res_cut_line_tmp = " + byte_to_str(res_cut_line_tmp))
-                    # ==================
-                    crc16_func = mkCrcFun(0x10000+0x8005, initCrc = 0, rev = False)        
-                    res_cut_line_tmp_crc = res_cut_line_tmp[1:-2]
-                    crc16_value = crc16_func(res_cut_line_tmp_crc)
-                    crc16_msb = crc16_value // 256
-                    crc16_lsb = crc16_value % 256
-                    # ==================
-                    if (crc16_msb == ord(res_cut_line_tmp[-2:-1])) and (crc16_lsb == ord(res_cut_line_tmp[-1:])):
-                        if res_cut_line_tmp[0] == chr(0xAA) and res_cut_line_tmp[1] == chr(0x12) and res_cut_line_tmp[2] == chr(0x00):
-                            # ======== Decoding of EPC data upload is always here =========
-                            epc_data = TagData()
-                            epc_data = decode_tag_data_frame(str_to_byte(res_cut_line_tmp[3:-2]))
-                            if global_logging_level > 1:
-                                response_frame_tmp = ClouRFIDFrame()
-                                response_frame_tmp.frame_raw_line = str_to_byte(res_cut_line_tmp)
-                                res_decode_tmp = response_frame_tmp.decodeFrame()
-                                post_log_message('recieved from reader', response_frame_tmp, res_decode_tmp)
-                                del response_frame_tmp, res_decode_tmp
-                                post_log_tag_data(epc_data)
-                            if 0x08 in epc_data.params.keys():
-                                request_frame_epc_data = ClouRFIDFrame('MAN_TAG_DATA_RESPONSE', TYPE_CONF_MANAGE, INIT_BY_USER, RS485_NOT_USED, epc_data.params[0x08])
-                                request_frame_epc_data.encodeFrame()
-                                request_frame_epc_data_line += request_frame_epc_data.frame_raw_line
-                                request_frame_epc_data_count += 1
-                                del request_frame_epc_data
-                            if epc_data.EPC_code not in read_tags_table_EPC:
-                                if active_ssid > 0: # Writing the WHOLE table with tag data to file and closing it
-                                    tmp_data_enc_dict = epc_data.encodeInDict()
-                                    read_tags_table.append(tmp_data_enc_dict)
-                                    read_tags_table_EPC.append(epc_data.EPC_code)
-                                    ssid_file_open_result = True
-                                    try:
-                                        file_ssid = open(this_app_ssid + str(active_ssid), "w")
-                                    except Exception as ssid_file_exception:
-                                        post_log_message("Error open ssid file " + this_app_ssid + str(active_ssid) + ": {0} ({1})".format(ssid_file_exception.errno, ssid_file_exception.strerror))
-                                        ssid_file_open_result = False
-                                    if ssid_file_open_result:
-                                        dump(read_tags_table, file_ssid, skipkeys = True) # write all JSON table to file
-                                        file_ssid.close()
-                                    del ssid_file_open_result, tmp_data_enc_dict
-                                else:
-                                    post_log_message("Recieved tag data while active_ssid = 0, ignored")
-                                if (app_config_json["log-tag-dialog-style"] == "partly" or app_config_json["log-tag-dialog-style"] == "full") and (active_ssid > 0):
-                                    response_frame_tmp = ClouRFIDFrame()
-                                    response_frame_tmp.frame_raw_line = str_to_byte(res_cut_line_tmp)
-                                    res_decode_tmp = response_frame_tmp.decodeFrame()
-                                    post_log_message('recieved from reader', response_frame_tmp, res_decode_tmp)
-                                    del response_frame_tmp, res_decode_tmp
-                                    post_log_tag_data(epc_data)
-                            del epc_data
-                            # ===== end decoding of EPC data upload ==========
-                        else:
-                            inc_mes_stack.append(res_cut_line_tmp)
-                        new_raw_line = str()
-                        new_raw_line = response_raw_line_stream[(len(res_cut_line_tmp) + response_raw_line_AA_idx):]
-                        # debug logging ====
-                        if global_logging_level > 2: post_log_message("new_raw_line = " + byte_to_str(new_raw_line))
-                        # ==================
-                        if response_raw_line_AA_idx > 0:
-                            post_log_message("Unknown byte content got from reader: " + byte_to_str(response_raw_line_stream[:response_raw_line_AA_idx]))
-                        response_raw_line_stream = new_raw_line
-                        tmp_idx_break_flag = False
-                        del new_raw_line
-                    del crc16_msb, crc16_lsb, crc16_value, crc16_func, res_cut_line_tmp_crc
-                del res_cut_line_tmp, len_tmp
-            else:
-                tmp_idx_break_flag = False
-            del response_raw_line_AA_idx
-        del tmp_idx, tmp_idx_break_flag
-    """
-    # ==========================================================
-    return 0
-
 # Return logs to the user
 def get_log():
     return global_log_list
@@ -975,63 +825,231 @@ def logging_level_set(global_logging_level_set):
     global_logging_level = global_logging_level_set
     return 0
 
-# Set reading timout
-def set_read_timeout(connection_context, timeout_set):
-    if type(connection_context) != type(SerialConnectionContext()):
-        return -41
-    if (type(timeout_set) != int) and (type(timeout_set) != float):
-        return -42
-    try:
-        connection_context.device_fd.timeout = timeout_set
-    except Exception as set_read_timeout_exception:
-        post_log_message("set_read_timeout: " + str(set_read_timeout_exception))
-        return -43
-    return 0
-
-# Connect method
-def conn_open(connection_context, port_name, baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None):
-    if type(connection_context) != type(SerialConnectionContext()):
-        return -14
-    if type(port_name) != str:
-        return -11
-    if len(port_name) == 0:
-        return -12    
-    try:
-        connection_context.device_fd = serial.Serial(port_name, baudrate, bytesize, parity, stopbits, timeout, xonxoff, rtscts, write_timeout, dsrdtr, inter_byte_timeout)
-    except Exception as conn_open_exception:
-        post_log_message("conn_open: " + str(conn_open_exception))
-        return -13
-    return 0
-
-# Close method
-def conn_close(connection_context):
-    if type(connection_context) != type(SerialConnectionContext()):
-        return -21
-    try:
-        connection_context.device_fd.close()
-    except Exception as conn_close_exception:
-        post_log_message("conn_close: " + str(conn_close_exception))
-        return -24
-    return 0
-
-# Send OP_STOP, wait for answer, decode, and return result
-def send_stop(connection_context, command_rs485_id):
-    if type(connection_context) != type(SerialConnectionContext()):
-        return -31
-    if connection_context.device_fd == serial.Serial():
-        return -36
-    send_general_MID_res = send_general_MID(connection_context, command_rs485_id, 'OP_STOP', TYPE_CONF_OPERATE, True, send_OP_STOP())
-    if send_general_MID_res == 0:
-        read_general_res = read_general(connection_context)
-        if read_general_res == 0:
-            split_res = split_raw_data_received_buffer(connection_context)
-            if split_res == 0:
-                pass
-            else:
-                return split_res
+class ClouRFIDReader:
+    def __init__(self, clou_reader_id_set, single_read_buffer_set = 2**14):
+        if type(clou_reader_id_set) != int:
+            return -4001
+        self._device_fd = serial.Serial()
+        self._raw_data_received_buffer = bytearray()
+        self._split_frames_received_list = list()
+        self._single_read_buffer = single_read_buffer_set
+        self._json_output = str()
+        self.clou_reader_id = clou_reader_id_set
+    # General send method
+    def _send_general_MID(self, command_MID, command_message_type, command_start_data_with_len, command_data_bytes):
+        request_frame = ClouRFIDFrame(command_MID, command_message_type, INIT_BY_USER, RS485_USED, self.clou_reader_id, command_data_bytes)
+        request_frame.start_data_with_len = command_start_data_with_len
+        request_frame.encodeFrame()
+        command_data_bytes_sent = 0
+        try:
+            command_data_bytes_sent = self._device_fd.write(request_frame.frame_raw_line)
+        except Exception as send_general_MID_exception:
+            post_log_message("_send_general_MID(): " + str(send_general_MID_exception))
+            return -1001
+        if  command_data_bytes_sent != len(request_frame.frame_raw_line):
+            post_log_message('_send_general_MID(): error, sent ' + str(command_data_bytes_sent) + ' bytes, requested ' + str(len(request_frame.frame_raw_line)) + ' bytes: ', request_frame, 0)
+            return -1002
         else:
-            return read_general_res
-    else:
-        return send_general_MID_res
-    del send_general_MID_res
-    return 0
+            post_log_message('SENT: ', request_frame, 0)
+        del request_frame, command_data_bytes_sent
+        return 0
+    # Split _raw_data_received_buffer line into  list of frames _split_frames_received_list
+    def _split_raw_data_received_buffer(self):
+        while len(self._raw_data_received_buffer) >= 8:
+            response_raw_line_stream = str(self._raw_data_received_buffer)            
+            tmp_idx = 0 # if there are more than one 0xAA in a response_raw_line_stream?
+            tmp_idx_break_flag = True
+            # debug logging ====
+            if global_logging_level > 2: post_log_message("response_raw_line_stream = " + byte_to_str(response_raw_line_stream))
+            # ==================
+            while tmp_idx_break_flag:
+                response_raw_line_AA_idx = response_raw_line_stream.find(chr(0xAA), tmp_idx)
+                # here check whether there are possibility to have correct packet from reader in a string
+                # this below is only if there is a good chance to have
+                # the correct message fully collected
+                # debug logging ====
+                if global_logging_level > 2: post_log_message("response_raw_line_AA_idx = " + str(response_raw_line_AA_idx) + ", tmp_idx = " + str(tmp_idx))
+                # ==================
+                if (response_raw_line_AA_idx > -1) and ((len(response_raw_line_stream) - response_raw_line_AA_idx) >= 8):
+                    tmp_idx = response_raw_line_AA_idx + 1
+                    res_cut_line_tmp = str()
+                    res_cut_line_tmp += response_raw_line_stream[0 + response_raw_line_AA_idx]
+                    res_cut_line_tmp += response_raw_line_stream[1 + response_raw_line_AA_idx]
+                    res_cut_line_tmp += response_raw_line_stream[2 + response_raw_line_AA_idx]
+                    res_cut_line_tmp += response_raw_line_stream[3 + response_raw_line_AA_idx]
+                    res_cut_line_tmp += response_raw_line_stream[4 + response_raw_line_AA_idx]
+                    res_cut_line_tmp += response_raw_line_stream[5 + response_raw_line_AA_idx]
+                    len_tmp = (256 * ord(response_raw_line_stream[4 + response_raw_line_AA_idx])) + ord(response_raw_line_stream[5 + response_raw_line_AA_idx])
+                    if (len_tmp <= 1024) and ((len(response_raw_line_stream) - response_raw_line_AA_idx) >= (8 + len_tmp)):
+                        res_cut_line_tmp += response_raw_line_stream[(6 + response_raw_line_AA_idx):(6 + len_tmp + 2 + response_raw_line_AA_idx)]
+                        # debug logging ====
+                        if global_logging_level > 2: post_log_message("res_cut_line_tmp = " + byte_to_str(res_cut_line_tmp))
+                        # ==================
+                        crc16_func = mkCrcFun(0x10000+0x8005, initCrc = 0, rev = False)        
+                        res_cut_line_tmp_crc = res_cut_line_tmp[1:-2]
+                        crc16_value = crc16_func(res_cut_line_tmp_crc)
+                        crc16_msb = crc16_value // 256
+                        crc16_lsb = crc16_value % 256
+                        # ==================
+                        if (crc16_msb == ord(res_cut_line_tmp[-2:-1])) and (crc16_lsb == ord(res_cut_line_tmp[-1:])):
+                            self._split_frames_received_list.append(res_cut_line_tmp)
+                            new_raw_line = str()
+                            new_raw_line = response_raw_line_stream[:response_raw_line_AA_idx] + response_raw_line_stream[(len(res_cut_line_tmp) + response_raw_line_AA_idx):]
+                            # debug logging ====
+                            if global_logging_level > 2: post_log_message("new_raw_line = " + byte_to_str(new_raw_line))
+                            # ==================
+                            self._raw_data_received_buffer = bytearray(new_raw_line)
+                            tmp_idx_break_flag = False
+                            del new_raw_line
+                        del crc16_msb, crc16_lsb, crc16_value, crc16_func, res_cut_line_tmp_crc
+                    del res_cut_line_tmp, len_tmp
+                else:
+                    tmp_idx_break_flag = False
+                del response_raw_line_AA_idx
+            del response_raw_line_stream, tmp_idx, tmp_idx_break_flag
+    # General read method
+    def _read_general(self):
+        raw_response_line = bytearray()
+        frames_received_cnt = 0
+        # First we read from device
+        try:
+            raw_response_line = self._device_fd.read(self._single_read_buffer)           
+        except Exception as read_general_exception:
+            post_log_message("_read_general(): " + str(read_general_exception))
+            return -2002                    
+        tmp_result_bytes = bytearray()
+        tmp_result_bytes = self._raw_data_received_buffer + raw_response_line
+        self._raw_data_received_buffer = tmp_result_bytes
+        del raw_response_line, tmp_result_bytes
+        # Here we extracting frames until all recognized are extracted
+        # all that is not a frame is left intact in self._raw_data_received_buffer
+        prev_split_frames_len = len(self._split_frames_received_list)
+        prev_split_len = 0
+        after_split_len = -1
+        while after_split_len < prev_split_len:
+            prev_split_len = len(self._raw_data_received_buffer)
+            self._split_raw_data_received_buffer()
+            after_split_len = len(self._raw_data_received_buffer)
+        del prev_split_len, after_split_len
+        frames_received_cnt = len(self._split_frames_received_list) - prev_split_frames_len
+        del prev_split_frames_len
+        # Return how many frames recognized and added to self._split_frames_received_list
+        return frames_received_cnt
+    # Connect method
+    def conn_open(self, port_name, baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None):
+        if type(port_name) != str:
+            return -11
+        if len(port_name) == 0:
+            return -12    
+        try:
+            self._device_fd = serial.Serial(port_name, baudrate, bytesize, parity, stopbits, timeout, xonxoff, rtscts, write_timeout, dsrdtr, inter_byte_timeout)
+        except Exception as conn_open_exception:
+            post_log_message("conn_open: " + str(conn_open_exception))
+            return -13
+        return 0
+    # Close method
+    def conn_close(self):
+        try:
+            self._device_fd.close()
+        except Exception as conn_close_exception:
+            post_log_message("conn_close: " + str(conn_close_exception))
+            return -24
+        return 0
+    # Set reading timout
+    def set_read_timeout(self, timeout_to_set):
+        if (type(timeout_to_set) != int) and (type(timeout_to_set) != float):
+            return -42
+        try:
+            self._device_fd.timeout = timeout_to_set
+        except Exception as set_read_timeout_exception:
+            post_log_message("set_read_timeout: " + str(set_read_timeout_exception))
+            return -43
+        return 0
+    # Send OP_STOP, wait for answer, decode, and return result
+    def send_stop(self):
+        if self._device_fd == serial.Serial():
+            return -36
+        send_general_MID_res = self._send_general_MID('OP_STOP', TYPE_CONF_OPERATE, True, send_OP_STOP())
+        if send_general_MID_res == 0:
+            read_frames_cnt = self._read_general()
+            if read_frames_cnt == 0:                
+                return -32
+            else:
+                i = 0
+                found_OK_frame = False
+                temp_split_frames_received_list = self._split_frames_received_list
+                self._split_frames_received_list = list()
+                for i in range(len(temp_split_frames_received_list)):
+                    response_raw_frame = ClouRFIDFrame()
+                    response_raw_frame.frame_raw_line = bytearray(temp_split_frames_received_list[i])
+                    res_decode_frame = response_raw_frame.decodeFrame()
+                    if res_decode_frame == 0:
+                        if (response_raw_frame.rs485_id == self.clou_reader_id) and (response_raw_frame.message_id == 'OP_STOP') and (response_raw_frame.init_by_reader == INIT_BY_USER):
+                            if response_raw_frame.data_bytes == bytearray((0x00, 0x01, 0x00)):
+                                found_OK_frame = True
+                                post_log_message("send_stop(): received OK -> ", response_raw_frame, res_decode_frame)
+                    else:
+                        post_log_message("send_stop(): error decoding frame -> ", response_raw_frame, res_decode_frame)                        
+                if not found_OK_frame:
+                    del temp_split_frames_received_list                    
+                    return -32
+                del temp_split_frames_received_list
+        else:
+            return send_general_MID_res
+        del send_general_MID_res
+        return 0
+    # Send OP_READ_EPC_TAG, wait for answer, decode, and return results including tags data
+    def send_scan_once(self, reader_ant_to_use_set):
+        if self._device_fd == serial.Serial():
+            return -61
+        tags_read_cnt = 0
+        self._json_output = str()
+        send_general_MID_res = self._send_general_MID('OP_READ_EPC_TAG', TYPE_CONF_OPERATE, True, send_OP_READ_EPC_TAG(reader_ant_to_use_set, True))
+        if send_general_MID_res == 0:
+            read_frames_cnt = self._read_general()
+            if read_frames_cnt == 0:                
+                return -62
+            else:
+                i = 0
+                found_OK_frame = False
+                tag_data_out_list = list()
+                temp_split_frames_received_list = self._split_frames_received_list
+                self._split_frames_received_list = list()
+                for i in range(len(temp_split_frames_received_list)):
+                    response_raw_frame = ClouRFIDFrame()
+                    response_raw_frame.frame_raw_line = bytearray(temp_split_frames_received_list[i])
+                    res_decode_frame = response_raw_frame.decodeFrame()
+                    if res_decode_frame == 0:
+                        if (response_raw_frame.rs485_id == self.clou_reader_id) and (response_raw_frame.message_id == 'OP_READ_EPC_TAG') and (response_raw_frame.init_by_reader == INIT_BY_USER):
+                            if (len(response_raw_frame.data_bytes) == 3) and (response_raw_frame.data_bytes[0:2] == bytearray((0x00, 0x01))):
+                                if response_raw_frame.data_bytes[2] == 0:
+                                    found_OK_frame = True
+                                    post_log_message("send_scan_once(): received OK -> ", response_raw_frame, res_decode_frame)
+                                else:
+                                    post_log_message("send_scan_once(): error initializing scan: " + DECODE_READ_EPC_TAG[response_raw_frame.data_bytes[2]] + " -> ", response_raw_frame, res_decode_frame)
+                                    del temp_split_frames_received_list
+                                    return -65
+                        if (response_raw_frame.rs485_id == self.clou_reader_id) and (response_raw_frame.message_id == 'OP_READER_EPC_DATA_UPLOAD') and (response_raw_frame.init_by_reader == INIT_BY_READER):
+                            res_cut_line_tmp = bytearray(temp_split_frames_received_list[i])
+                            epc_data = TagData()
+                            epc_data = decode_tag_data_frame(res_cut_line_tmp[4:-2])
+                            tag_data_out_list.append(epc_data.encodeInDict())
+                            del res_cut_line_tmp, epc_data
+                    else:
+                        post_log_message("send_scan_once(): error decoding frame -> ", response_raw_frame, res_decode_frame)                        
+                del temp_split_frames_received_list
+
+                if found_OK_frame:
+                    tags_read_cnt = len(tag_data_out_list)
+                    if tags_read_cnt > 0:
+                        self._json_output = dumps(tag_data_out_list, skipkeys = True)
+                else:
+                    return -64
+                del tag_data_out_list
+        else:
+            return send_general_MID_res
+        del send_general_MID_res
+        return tags_read_cnt
+    # Get JSON field
+    def get_json_output(self):
+        return self._json_output
