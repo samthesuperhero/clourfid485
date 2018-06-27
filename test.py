@@ -1,21 +1,20 @@
 import clourfid485
 
-sr_cont = clourfid485.SerialConnectionContext()
-
 clourfid485.logging_level_set(1)
 
-clourfid485.conn_open(sr_cont, "/dev/ttyUSB1", 115200, timeout = 1)
+reader_inst_1 = clourfid485.ClouRFIDReader(42)
 
-print(clourfid485.send_stop(sr_cont, 42))
+print("reader_inst_1 opened = ", reader_inst_1.conn_open("/dev/ttyUSB1", 115200, timeout = 1))
+print("reader_inst_1.send_stop(): ", reader_inst_1.send_stop())
+print("reader_inst_1.send_scan_once(): ", reader_inst_1.send_scan_once([1]))
+print("\n")
+print(reader_inst_1.get_json_output())
+print("\n")
+print("reader_inst_1 closed = ", reader_inst_1.conn_close())
 
-print(clourfid485.send_stop(sr_cont, 42))
-
-print(clourfid485.send_stop(sr_cont, 42))
-
-print(clourfid485.send_stop(sr_cont, 42))
-
-clourfid485.conn_close(sr_cont)
-
-print(clourfid485.get_log())
+log_sheet = clourfid485.get_log()
+i = 0
+for i in range(len(log_sheet)):
+    print(log_sheet[i] + "\n")
 
 print("\nSuccess!\n")
