@@ -465,11 +465,36 @@ class ReaderParameters:     # Parameters of reader
         self.rfid_protocol_list = list()
 
 class SerialConnectionContext:
-    def __init__(self, single_read_buffer_set = 2**14):
-        self.device_fd = serial.Serial()
-        self.raw_data_received_buffer = bytearray()
-        self.ClouRFIDFrame_list = list()
-        self.single_read_buffer = single_read_buffer_set
+    def __init__(self, clou_reader_id_set, single_read_buffer_set = 2**14):
+        self.clou_reader_id = clou_reader_id_set
+        self._device_fd = serial.Serial()
+        self._raw_data_received_buffer = bytearray()
+        self._ClouRFIDFrame_list = list()
+        self._single_read_buffer = single_read_buffer_set
+    # Connect method
+    def conn_open(port_name, baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None):
+        #if type(connection_context) != type(SerialConnectionContext()):
+        #    return -14
+        if type(port_name) != str:
+            return -11
+        if len(port_name) == 0:
+            return -12    
+        try:
+            self._device_fd = serial.Serial(port_name, baudrate, bytesize, parity, stopbits, timeout, xonxoff, rtscts, write_timeout, dsrdtr, inter_byte_timeout)
+        except Exception as conn_open_exception:
+            post_log_message("conn_open: " + str(conn_open_exception))
+            return -13
+        return 0
+    # Close method
+    def conn_close():
+        #if type(connection_context) != type(SerialConnectionContext()):
+        #    return -21
+        try:
+            self._device_fd.close()
+        except Exception as conn_close_exception:
+            post_log_message("conn_close: " + str(conn_close_exception))
+            return -24
+        return 0
 
 FREQ_BANDS = {
     0: '920~925MHz',
@@ -986,32 +1011,6 @@ def set_read_timeout(connection_context, timeout_set):
     except Exception as set_read_timeout_exception:
         post_log_message("set_read_timeout: " + str(set_read_timeout_exception))
         return -43
-    return 0
-
-# Connect method
-def conn_open(connection_context, port_name, baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None):
-    if type(connection_context) != type(SerialConnectionContext()):
-        return -14
-    if type(port_name) != str:
-        return -11
-    if len(port_name) == 0:
-        return -12    
-    try:
-        connection_context.device_fd = serial.Serial(port_name, baudrate, bytesize, parity, stopbits, timeout, xonxoff, rtscts, write_timeout, dsrdtr, inter_byte_timeout)
-    except Exception as conn_open_exception:
-        post_log_message("conn_open: " + str(conn_open_exception))
-        return -13
-    return 0
-
-# Close method
-def conn_close(connection_context):
-    if type(connection_context) != type(SerialConnectionContext()):
-        return -21
-    try:
-        connection_context.device_fd.close()
-    except Exception as conn_close_exception:
-        post_log_message("conn_close: " + str(conn_close_exception))
-        return -24
     return 0
 
 # Send OP_STOP, wait for answer, decode, and return result
