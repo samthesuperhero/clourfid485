@@ -354,7 +354,7 @@ ERR_NAME_DICT = {
     -13: "conn_open: serial.Serial() exception",
     -24: "conn_close: serial.close() exception",
     -31: "send_stop: response frame from reader decoded with error",
-    -32: "send_stop: reader not answered during timeout",
+    -32: "send_stop: not received OK from reader",
     -33: "send_stop: reader answered with error",
     -36: "send_stop: serial port descriptor connection_context.device_fd empty",
     -42: "set_read_timeout: timeout_set must be int or float",
@@ -363,8 +363,7 @@ ERR_NAME_DICT = {
     -52: "logging_level_set: global_logging_level_set availabel values: 0, 1, 2",
     -61: "send_scan_once: serial port descriptor connection_context.device_fd empty",
     -62: "send_scan_once: reader not answered during timeout",
-    -63: "send_scan_once: wrong contents of reader frame",
-    -64: "send_scan_once: response frame from reader decoded with error",
+    -64: "send_scan_once: not received OK from reader",
     -65: "send_scan_once: reader answered with error",
     -1001: "send: serial.write() exception",
     -1002: "send: bytes sent not equal bytes requested to send",
@@ -977,68 +976,80 @@ class ClouRFIDReader:
                 return -32
             else:
                 i = 0
-                for i in range(len(self._split_frames_received_list)):
+                found_OK_frame = False
+                temp_split_frames_received_list = self._split_frames_received_list
+                self._split_frames_received_list = list()
+                for i in range(len(temp_split_frames_received_list)):
                     response_raw_frame = ClouRFIDFrame()
-                    response_raw_frame.frame_raw_line = bytearray(self._split_frames_received_list[i])
+                    response_raw_frame.frame_raw_line = bytearray(temp_split_frames_received_list[i])
                     res_decode_frame = response_raw_frame.decodeFrame()
                     if res_decode_frame == 0:
                         if (response_raw_frame.rs485_id == self.clou_reader_id) and (response_raw_frame.message_id == 'OP_STOP') and (response_raw_frame.init_by_reader == INIT_BY_USER):
-                            del self._split_frames_received_list[i] # remove "our" frame from the list as it is processed
-                            if response_raw_frame.data_bytes != bytearray((0x00, 0x01, 0x00)):
-                                return -33
-                            else:
+                            if response_raw_frame.data_bytes == bytearray((0x00, 0x01, 0x00)):
+                                found_OK_frame = True
                                 post_log_message("send_stop(): received OK -> ", response_raw_frame, res_decode_frame)
                     else:
-                        del self._split_frames_received_list[i] # remove broken frame from the list
-                        post_log_message("send_stop(): error decoding frame, deleted from _split_frames_received_list -> ", response_raw_frame, res_decode_frame)                        
-                        return -31
+                        post_log_message("send_stop(): error decoding frame -> ", response_raw_frame, res_decode_frame)                        
+                if not found_OK_frame:
+                    del temp_split_frames_received_list                    
+                    return -32
+                del temp_split_frames_received_list
         else:
             return send_general_MID_res
         del send_general_MID_res
         return 0
-    # Send OP_STOP, wait for answer, decode, and return result
+    # Send OP_READ_EPC_TAG, wait for answer, decode, and return results including tags data
     def send_scan_once(self, reader_ant_to_use_set):
         if self._device_fd == serial.Serial():
             return -61
         tags_read_cnt = 0
+        self._json_output = str()
         send_general_MID_res = self._send_general_MID('OP_READ_EPC_TAG', TYPE_CONF_OPERATE, True, send_OP_READ_EPC_TAG(reader_ant_to_use_set, True))
         if send_general_MID_res == 0:
             read_frames_cnt = self._read_general()
             if read_frames_cnt == 0:                
                 return -62
             else:
-                tag_data_out_list = list()
-                self._json_output = str()
                 i = 0
-                for i in range(len(self._split_frames_received_list)):
+                found_OK_frame = False
+                tag_data_out_list = list()
+                temp_split_frames_received_list = self._split_frames_received_list
+                self._split_frames_received_list = list()
+                for i in range(len(temp_split_frames_received_list)):
                     response_raw_frame = ClouRFIDFrame()
-                    response_raw_frame.frame_raw_line = bytearray(self._split_frames_received_list[i])
+                    response_raw_frame.frame_raw_line = bytearray(temp_split_frames_received_list[i])
                     res_decode_frame = response_raw_frame.decodeFrame()
                     if res_decode_frame == 0:
                         if (response_raw_frame.rs485_id == self.clou_reader_id) and (response_raw_frame.message_id == 'OP_READ_EPC_TAG') and (response_raw_frame.init_by_reader == INIT_BY_USER):
-                            del self._split_frames_received_list[i] # remove "our" frame from the list as it is processed
-                            if len(response_raw_frame.data_bytes) != 3 or response_raw_frame.data_bytes[0:2] != bytearray((0x00, 0x01)):
-                                return -63
-                            else:
+                            if (len(response_raw_frame.data_bytes) == 3) and (response_raw_frame.data_bytes[0:2] == bytearray((0x00, 0x01))):
                                 if response_raw_frame.data_bytes[2] == 0:
+                                    found_OK_frame = True
                                     post_log_message("send_scan_once(): received OK -> ", response_raw_frame, res_decode_frame)
                                 else:
                                     post_log_message("send_scan_once(): error initializing scan: " + DECODE_READ_EPC_TAG[response_raw_frame.data_bytes[2]] + " -> ", response_raw_frame, res_decode_frame)
+                                    del temp_split_frames_received_list
                                     return -65
                         if (response_raw_frame.rs485_id == self.clou_reader_id) and (response_raw_frame.message_id == 'OP_READER_EPC_DATA_UPLOAD') and (response_raw_frame.init_by_reader == INIT_BY_READER):
-                            res_cut_line_tmp = bytearray(self._split_frames_received_list[i])
-                            del self._split_frames_received_list[i] # remove "our" frame from the list as it is processed
+                            res_cut_line_tmp = bytearray(temp_split_frames_received_list[i])
                             epc_data = TagData()
                             epc_data = decode_tag_data_frame(res_cut_line_tmp[4:-2])
                             tag_data_out_list.append(epc_data.encodeInDict())
+                            del res_cut_line_tmp, epc_data
                     else:
-                        del self._split_frames_received_list[i] # remove broken frame from the list
-                        post_log_message("send_scan_once(): error decoding frame, deleted from _split_frames_received_list -> ", response_raw_frame, res_decode_frame)                        
-                        return -64
-                tags_read_cnt = len(tag_data_out_list)
-                if tags_read_cnt > 0:
-                    self._json_output = dumps(tag_data_out_list, skipkeys = True)
+                        post_log_message("send_scan_once(): error decoding frame -> ", response_raw_frame, res_decode_frame)                        
+                del temp_split_frames_received_list
+
+                if found_OK_frame:
+                    tags_read_cnt = len(tag_data_out_list)
+                    if tags_read_cnt > 0:
+                        self._json_output = dumps(tag_data_out_list, skipkeys = True)
+                else:
+                    return -64
+                del tag_data_out_list
         else:
             return send_general_MID_res
         del send_general_MID_res
         return tags_read_cnt
+    # Get JSON field
+    def get_json_output(self):
+        return self._json_output
