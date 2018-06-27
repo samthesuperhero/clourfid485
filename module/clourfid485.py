@@ -988,7 +988,6 @@ class SerialConnectionContext:
                     else:
                         post_log_message("send_stop(): error decoding frame, deleted from _split_frames_received_list -> ", response_raw_frame, res_decode_frame)                        
                         return -31
-                    del response_raw_frame_bytes
                 self._split_frames_received_list = tmp_split_frames_received_list
                 del tmp_split_frames_received_list
         else:
