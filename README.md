@@ -70,17 +70,21 @@ This will be the JSON list:
 "XPC_indicator": 0,
 "UMI": 0
 }
-4
-public
 ]
 ```
 
 where:
+
 **false** – tag data frame decode result, must always be false, ignore those where is true set
+
 **300ED89F3350005FE235FA1E** – tag EPC code
+
 **96** – len of EPC field in bits
+
 **1** – ID of antenna that detected the tag
+
 **106** – RSSI level
+
 **1187963668.824717** – UNIX style timestamp for the time when tag was read, by the embedded clock of reader device
 
 Ignore other parameters in JSON objects in the list.
