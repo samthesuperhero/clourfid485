@@ -1,6 +1,11 @@
 # clourfid485
 A Python module to connect to Clou (Hopeland) RFID readers via RS 485
 
+This is a 1-file module, just put the file to your working folder and
+```
+import clourfid485
+```
+and go!
 
 First create the reader class instance,
 ```
